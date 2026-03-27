@@ -22,14 +22,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from content_engine.schemas import (
     ChapterOut,
+    ExerciseGenerateRequest,
+    ExerciseOut,
     GeneratedResourceOut,
     KnowledgePointOut,
     KpSearchRequest,
+    PromptTemplateCreate,
+    PromptTemplateOut,
+    PromptTemplateUpdate,
     TextbookCreate,
     TextbookOut,
     TextbookUpdate,
 )
 from content_engine.service import ContentService
+from content_engine import exercise_service, prompt_service
 
 logger = structlog.get_logger()
 
@@ -294,3 +300,128 @@ async def extract_knowledge_points(textbook_id: str, user: AdminUser, svc: Svc):
             KnowledgePointOut.model_validate(kp).model_dump() for kp in kps
         ],
     })
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 练习题生成
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.post("/exercises/generate")
+async def generate_exercises_endpoint(
+    body: ExerciseGenerateRequest, user: AdminUser, svc: Svc
+):
+    """
+    AI 生成练习题（管理员）
+    - 基于知识点 + prompt 模板调用 LLM 生成题目
+    - 支持选择题/填空题/简答题/判断题
+    """
+    resource = await exercise_service.generate_exercises(
+        svc.db,
+        kp_id=body.knowledge_point_id,
+        exercise_type=body.exercise_type,
+        count=body.count,
+        difficulty=body.difficulty,
+    )
+    await svc.db.commit()
+    return ok(ExerciseOut.model_validate(resource).model_dump())
+
+
+@router.get("/exercises/{resource_id}")
+async def get_exercise(resource_id: str, user: CurrentUser, svc: Svc):
+    """获取单套练习题"""
+    import uuid as _uuid
+    resource = await exercise_service.get_exercise(svc.db, _uuid.UUID(resource_id))
+    return ok(ExerciseOut.model_validate(resource).model_dump())
+
+
+@router.get("/knowledge-points/{kp_id}/exercises")
+async def list_exercises_by_kp(
+    kp_id: str,
+    user: CurrentUser,
+    svc: Svc,
+    exercise_type: Optional[str] = Query(None, description="题型: choice/fill_blank/short_answer/true_false"),
+):
+    """获取某知识点下的练习题列表"""
+    import uuid as _uuid
+    resources = await exercise_service.list_exercises_by_kp(
+        svc.db, _uuid.UUID(kp_id), exercise_type
+    )
+    return ok([ExerciseOut.model_validate(r).model_dump() for r in resources])
+
+
+@router.get("/exercises")
+async def list_exercises(
+    user: CurrentUser,
+    svc: Svc,
+    exercise_type: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """练习题列表查询"""
+    resources = await exercise_service.list_exercises(
+        svc.db, exercise_type=exercise_type, limit=limit, offset=offset
+    )
+    return ok([ExerciseOut.model_validate(r).model_dump() for r in resources])
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Prompt 模板管理
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.post("/prompts")
+async def create_prompt(body: PromptTemplateCreate, user: AdminUser, svc: Svc):
+    """创建 Prompt 模板（管理员）"""
+    tpl = await prompt_service.create_prompt_template(
+        svc.db,
+        resource_type=body.resource_type,
+        name=body.name,
+        template_text=body.template_text,
+        description=body.description,
+        is_active=body.is_active,
+    )
+    await svc.db.commit()
+    return ok(PromptTemplateOut.model_validate(tpl).model_dump())
+
+
+@router.get("/prompts")
+async def list_prompts(
+    user: CurrentUser,
+    svc: Svc,
+    resource_type: Optional[str] = Query(None),
+    active_only: bool = Query(False),
+):
+    """查询 Prompt 模板列表"""
+    tpls = await prompt_service.list_prompt_templates(
+        svc.db, resource_type=resource_type, active_only=active_only
+    )
+    return ok([PromptTemplateOut.model_validate(t).model_dump() for t in tpls])
+
+
+@router.get("/prompts/{tpl_id}")
+async def get_prompt(tpl_id: str, user: CurrentUser, svc: Svc):
+    """获取 Prompt 模板详情"""
+    import uuid as _uuid
+    tpl = await prompt_service.get_prompt_template(svc.db, _uuid.UUID(tpl_id))
+    return ok(PromptTemplateOut.model_validate(tpl).model_dump())
+
+
+@router.patch("/prompts/{tpl_id}")
+async def update_prompt(tpl_id: str, body: PromptTemplateUpdate, user: AdminUser, svc: Svc):
+    """更新 Prompt 模板（管理员）"""
+    import uuid as _uuid
+    tpl = await prompt_service.update_prompt_template(
+        svc.db, _uuid.UUID(tpl_id), **body.model_dump(exclude_unset=True)
+    )
+    await svc.db.commit()
+    return ok(PromptTemplateOut.model_validate(tpl).model_dump())
+
+
+@router.post("/prompts/{tpl_id}/activate")
+async def activate_prompt(tpl_id: str, user: AdminUser, svc: Svc):
+    """激活指定模板，停用同类型其他模板（管理员）"""
+    import uuid as _uuid
+    tpl = await prompt_service.activate_template(svc.db, _uuid.UUID(tpl_id))
+    await svc.db.commit()
+    return ok(PromptTemplateOut.model_validate(tpl).model_dump())

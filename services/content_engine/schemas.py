@@ -105,6 +105,32 @@ class GenerateResourceRequest(BaseModel):
     extra_instructions: Optional[str] = None
 
 
+# ── Exercise Generation ───────────────────────────────
+
+class ExerciseGenerateRequest(BaseModel):
+    """练习题生成请求"""
+    knowledge_point_id: UUID
+    exercise_type: str = Field(
+        default="choice",
+        description="题型: choice, fill_blank, short_answer, true_false",
+    )
+    count: int = Field(default=5, ge=1, le=20, description="生成题目数量")
+    difficulty: int = Field(default=3, ge=1, le=5, description="难度 1-5")
+
+
+class ExerciseOut(OrmBase):
+    """练习题资源输出"""
+    id: UUID
+    knowledge_point_id: Optional[str] = None
+    resource_type: str
+    title: str
+    content_json: dict
+    llm_model: Optional[str] = None
+    quality_score: Optional[int] = None
+    prompt_template_id: Optional[str] = None
+    created_at: datetime
+
+
 # ── Prompt Template ───────────────────────────────────
 
 class PromptTemplateOut(OrmBase):
@@ -122,6 +148,24 @@ class PromptTemplateCreate(BaseModel):
     name: str = Field(..., max_length=100)
     template_text: str
     description: Optional[str] = None
+    is_active: bool = True
+
+
+class PromptTemplateUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=100)
+    template_text: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class PromptTemplateOut(OrmBase):
+    id: UUID
+    resource_type: str
+    name: str
+    template_text: str
+    description: Optional[str] = None
+    is_active: bool
+    version: int
 
 
 # forward refs
