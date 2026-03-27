@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from deps import TokenPayload, get_current_user, require_role
-from shared.schemas import ok
+from shared.schemas import ok, paged
 
 from .schemas import (
     AdminUserUpdate,

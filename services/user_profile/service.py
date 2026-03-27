@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 import jwt
 import structlog
@@ -71,6 +72,58 @@ class UserService:
             "expires_in": 86400,
             "user": user,
         }
+
+    # ── Admin 管理 ─────────────────────────────────────
+
+    async def list_users(
+        self,
+        role: str | None = None,
+        is_active: bool | None = None,
+        keyword: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[User], int]:
+        """Admin: 分页列出用户。"""
+        from sqlalchemy import func as sa_func
+
+        q = select(User).where(User.deleted_at.is_(None))
+        count_q = select(sa_func.count()).select_from(User).where(User.deleted_at.is_(None))
+
+        if role:
+            q = q.where(User.role == role)
+            count_q = count_q.where(User.role == role)
+        if is_active is not None:
+            q = q.where(User.is_active == is_active)
+            count_q = count_q.where(User.is_active == is_active)
+        if keyword:
+            like = f"%{keyword}%"
+            q = q.where((User.nickname.ilike(like)) | (User.phone.ilike(like)))
+            count_q = count_q.where((User.nickname.ilike(like)) | (User.phone.ilike(like)))
+
+        total = (await self.db.execute(count_q)).scalar() or 0
+        q = q.order_by(User.created_at.desc()).offset(offset).limit(limit)
+        result = await self.db.execute(q)
+        users = list(result.scalars().all())
+        return users, total
+
+    async def admin_get_user(self, user_id: UUID) -> User:
+        """Admin: 获取用户详情。"""
+        user = await self.db.get(User, user_id)
+        if not user or user.deleted_at:
+            raise NotFoundError("用户不存在")
+        return user
+
+    async def admin_update_user(self, user_id: UUID, **kwargs) -> User:
+        """Admin: 更新用户字段（role, is_active, nickname 等）。"""
+        user = await self.db.get(User, user_id)
+        if not user or user.deleted_at:
+            raise NotFoundError("用户不存在")
+        for k, v in kwargs.items():
+            if v is not None and hasattr(user, k):
+                setattr(user, k, v)
+        await self.db.flush()
+        await self.db.refresh(user)
+        return user
 
     # ── 用户 CRUD ─────────────────────────────────────
 

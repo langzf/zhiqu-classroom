@@ -24,6 +24,13 @@ class UserUpdate(OrmBase):
     avatar_url: Optional[str] = None
 
 
+class AdminUserUpdate(OrmBase):
+    """管理员更新用户信息"""
+    nickname: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
 class UserOut(OrmBase):
     id: UUID
     phone: Optional[str]
