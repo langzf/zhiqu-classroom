@@ -45,6 +45,7 @@ class TutorService:
         )
         self.db.add(conv)
         await self.db.flush()
+        await self.db.refresh(conv)
         logger.info(
             "conversation_created",
             conversation_id=str(conv.id),
@@ -106,6 +107,7 @@ class TutorService:
             if hasattr(conv, k):
                 setattr(conv, k, v)
         await self.db.flush()
+        await self.db.refresh(conv)
         logger.info(
             "conversation_updated",
             conversation_id=conversation_id,
@@ -122,6 +124,7 @@ class TutorService:
         conv = await self.get_conversation(conversation_id)
         conv.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()
+        await self.db.refresh(conv)
         logger.info("conversation_soft_deleted", conversation_id=conversation_id)
         return conv
 

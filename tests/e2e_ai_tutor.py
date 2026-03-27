@@ -5,8 +5,10 @@ import jwt, requests
 
 BASE = "http://localhost:8002"
 SECRET = "dev-secret-change-in-production"
+# Fixed UUID for test student (DB column is UUID type)
+TEST_STUDENT_ID = "01965a00-0000-7000-8000-000000000001"
 
-def make_token(sub="test-student-001", role="student"):
+def make_token(sub=TEST_STUDENT_ID, role="student"):
     now = int(time.time())
     payload = {
         "sub": sub,
@@ -58,8 +60,13 @@ if not check(r, 200, "GET /conversations"):
     errors.append("STEP2")
 else:
     body = r.json()["data"]
-    items = body.get("items", body)
-    print(f"  count: {len(items) if isinstance(items, list) else '?'}")
+    if isinstance(body, list):
+        items = body
+    elif isinstance(body, dict):
+        items = body.get("items", [])
+    else:
+        items = []
+    print(f"  count: {len(items)}")
 
 # STEP 3: Get single conversation
 step(3, "Get conversation detail")
@@ -105,7 +112,12 @@ if not check(r, 200, "GET /messages"):
     errors.append("STEP5")
 else:
     msg_body = r.json()["data"]
-    msg_items = msg_body.get("items", msg_body) if isinstance(msg_body, dict) else msg_body
+    if isinstance(msg_body, list):
+        msg_items = msg_body
+    elif isinstance(msg_body, dict):
+        msg_items = msg_body.get("items", msg_body.get("messages", []))
+    else:
+        msg_items = []
     count = len(msg_items) if isinstance(msg_items, list) else "?"
     print(f"  message_count: {count}")
 
@@ -139,7 +151,7 @@ else:
 # STEP 8: Message feedback
 step(8, "Message feedback")
 if MSG_ID:
-    r = requests.post(f"{BASE}/api/v1/tutor/conversations/{CONV_ID}/messages/{MSG_ID}/feedback",
+    r = requests.post(f"{BASE}/api/v1/tutor/messages/{MSG_ID}/feedback",
                       headers=HEADERS,
                       json={"rating": 5, "comment": "Great reply!"})
     if not check(r, 200, "POST /feedback"):
