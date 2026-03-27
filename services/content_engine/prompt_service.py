@@ -48,7 +48,7 @@ async def get_active_template(db: AsyncSession, resource_type: str) -> PromptTem
             and_(
                 PromptTemplate.resource_type == resource_type,
                 PromptTemplate.is_active.is_(True),
-                PromptTemplate.is_deleted.is_(False),
+                PromptTemplate.deleted_at.is_(None),
             )
         )
         .order_by(PromptTemplate.version.desc())
@@ -66,7 +66,7 @@ async def list_prompt_templates(
     resource_type: Optional[str] = None,
     active_only: bool = False,
 ) -> list[PromptTemplate]:
-    stmt = select(PromptTemplate).where(PromptTemplate.is_deleted.is_(False))
+    stmt = select(PromptTemplate).where(PromptTemplate.deleted_at.is_(None))
     if resource_type:
         stmt = stmt.where(PromptTemplate.resource_type == resource_type)
     if active_only:

@@ -45,8 +45,8 @@ class TextbookDetail(TextbookOut):
 
 class ChapterOut(OrmBase):
     id: UUID
-    textbook_id: str
-    parent_id: Optional[str] = None
+    textbook_id: UUID
+    parent_id: Optional[UUID] = None
     title: str
     depth: int
     sort_order: int
@@ -61,7 +61,7 @@ class ChapterTree(ChapterOut):
 
 class KnowledgePointOut(OrmBase):
     id: UUID
-    chapter_id: str
+    chapter_id: UUID
     title: str
     description: Optional[str] = None
     difficulty: int
@@ -90,7 +90,7 @@ class KpSearchRequest(BaseModel):
 
 class GeneratedResourceOut(OrmBase):
     id: UUID
-    knowledge_point_id: str
+    knowledge_point_id: UUID
     resource_type: str
     title: str
     content_json: dict
@@ -100,7 +100,7 @@ class GeneratedResourceOut(OrmBase):
 
 
 class GenerateResourceRequest(BaseModel):
-    knowledge_point_id: str
+    knowledge_point_id: UUID
     resource_type: str = Field(..., description="quiz/game/video_script/summary/exercise")
     extra_instructions: Optional[str] = None
 
@@ -121,27 +121,17 @@ class ExerciseGenerateRequest(BaseModel):
 class ExerciseOut(OrmBase):
     """练习题资源输出"""
     id: UUID
-    knowledge_point_id: Optional[str] = None
+    knowledge_point_id: Optional[UUID] = None
     resource_type: str
     title: str
     content_json: dict
     llm_model: Optional[str] = None
     quality_score: Optional[int] = None
-    prompt_template_id: Optional[str] = None
+    prompt_template_id: Optional[UUID] = None
     created_at: datetime
 
 
 # ── Prompt Template ───────────────────────────────────
-
-class PromptTemplateOut(OrmBase):
-    id: UUID
-    resource_type: str
-    name: str
-    version: int
-    is_active: bool
-    description: Optional[str] = None
-    created_at: datetime
-
 
 class PromptTemplateCreate(BaseModel):
     resource_type: str

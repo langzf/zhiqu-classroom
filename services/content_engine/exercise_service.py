@@ -5,7 +5,7 @@ import logging
 import uuid
 from typing import Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from content_engine.models import GeneratedResource, KnowledgePoint
@@ -54,9 +54,16 @@ async def generate_exercises(
     if not kp:
         raise NotFoundError("knowledge_point", str(kp_id))
 
-    # 2) 获取章节上下文
-    chapter = await kp.awaitable_attrs.chapter if hasattr(kp, "awaitable_attrs") else kp.chapter
-    chapter_title = chapter.title if chapter else "未知章节"
+    # 2) 获取章节上下文（用 raw SQL 避免 async lazy-load 问题）
+    ctx_row = await db.execute(text(
+        "SELECT c.title AS chapter_title, t.subject "
+        "FROM content.chapters c "
+        "LEFT JOIN content.textbooks t ON t.id = c.textbook_id "
+        "WHERE c.id = :cid"
+    ), {"cid": kp.chapter_id})
+    ctx = ctx_row.first()
+    chapter_title = ctx.chapter_title if ctx else "未知章节"
+    subject = (ctx.subject if ctx else None) or "数学"
 
     # 3) 获取 prompt 模板
     resource_type = RESOURCE_TYPE_MAP[exercise_type]
@@ -87,16 +94,16 @@ async def generate_exercises(
     )
 
     logger.info("Generating %d %s exercises for KP %s", count, exercise_type, kp_id)
-    raw_response = await llm.chat(
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": filled_prompt},
-        ],
+    chat_result = await llm.chat(
+        user_content=filled_prompt,
+        system_prompt=system_msg,
         temperature=0.7,
+        max_tokens=4096,
     )
+    raw_text = chat_result.content
 
     # 6) 解析 JSON
-    content_json = _parse_llm_response(raw_response, exercise_type)
+    content_json = _parse_llm_response(raw_text, exercise_type)
 
     # 7) 质量校验
     quality_score = _validate_exercises(content_json, exercise_type, count)
@@ -108,7 +115,7 @@ async def generate_exercises(
         title=f"{kp.title} - {_type_cn(exercise_type)} ({count}题)",
         content_json=content_json,
         prompt_template_id=tpl_id,
-        llm_model=llm.model_name,
+        llm_model=llm.default_model,
         quality_score=quality_score,
     )
     db.add(resource)
