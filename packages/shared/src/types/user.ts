@@ -42,3 +42,8 @@ export interface RegisterRequest {
   role?: string;
   code?: string;
 }
+
+/** User 别名（admin 管理场景） */
+export interface User extends UserInfo {
+  updated_at?: string;
+}

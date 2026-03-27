@@ -1,31 +1,39 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { AuthGuard } from './authGuard';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { lazy } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
-import LoginPage from '@/pages/login/LoginPage';
-import DashboardPage from '@/pages/dashboard/DashboardPage';
-import TextbookList from '@/pages/textbooks/TextbookList';
-import TextbookDetail from '@/pages/textbooks/TextbookDetail';
+import AuthGuard from '@/router/authGuard';
 
-export default function AppRouter() {
-  return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+const LoginPage = lazy(() => import('@/pages/login/LoginPage'));
+const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
+const TextbookList = lazy(() => import('@/pages/textbooks/TextbookList'));
+const TextbookDetail = lazy(() => import('@/pages/textbooks/TextbookDetail'));
+const ExerciseList = lazy(() => import('@/pages/exercises/ExerciseList'));
+const ConversationList = lazy(() => import('@/pages/tutor/ConversationList'));
+const ChatPage = lazy(() => import('@/pages/tutor/ChatPage'));
+const UserList = lazy(() => import('@/pages/users/UserList'));
+const TaskList = lazy(() => import('@/pages/learning/TaskList'));
 
-      <Route
-        path="/"
-        element={
-          <AuthGuard>
-            <AppLayout />
-          </AuthGuard>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="textbooks" element={<TextbookList />} />
-        <Route path="textbooks/:id" element={<TextbookDetail />} />
-      </Route>
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    path: '/',
+    element: (
+      <AuthGuard>
+        <AppLayout />
+      </AuthGuard>
+    ),
+    children: [
+      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'textbooks', element: <TextbookList /> },
+      { path: 'textbooks/:id', element: <TextbookDetail /> },
+      { path: 'exercises', element: <ExerciseList /> },
+      { path: 'tutor', element: <ConversationList /> },
+      { path: 'tutor/:id', element: <ChatPage /> },
+      { path: 'users', element: <UserList /> },
+      { path: 'tasks', element: <TaskList /> },
+    ],
+  },
+]);
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
+export default router;

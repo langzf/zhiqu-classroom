@@ -27,3 +27,14 @@ export function refreshToken(refresh_token: string) {
     client.post('/user/refresh', { refresh_token }),
   );
 }
+
+/** 获取用户列表（管理员） */
+export async function listUsers(params?: {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  role?: string;
+}) {
+  const res = await client.get('/user/users', { params });
+  return res.data?.data ?? res.data;
+}

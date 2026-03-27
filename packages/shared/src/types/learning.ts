@@ -21,3 +21,14 @@ export interface TaskProgress {
   started_at: string | null;
   completed_at: string | null;
 }
+
+/** 学习记录 */
+export interface LearningRecord {
+  id: string;
+  task_id: string;
+  student_id: string;
+  score: number | null;
+  answer_json: Record<string, unknown> | null;
+  duration_seconds: number | null;
+  created_at: string;
+}

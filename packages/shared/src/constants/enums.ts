@@ -48,3 +48,17 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
 // ── Exercise Types ──
 export const EXERCISE_TYPES = ['choice', 'fill_blank', 'short_answer', 'true_false'] as const;
 export type ExerciseType = (typeof EXERCISE_TYPES)[number];
+
+export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
+  choice: '选择题',
+  fill_blank: '填空题',
+  short_answer: '简答题',
+  true_false: '判断题',
+};
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  student: '学生',
+  guardian: '家长',
+  admin: '管理员',
+  teacher: '教师',
+};
