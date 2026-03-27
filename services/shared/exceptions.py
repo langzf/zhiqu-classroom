@@ -48,6 +48,12 @@ class ValidationError(AppError):
         super().__init__(code=422, message=message, status_code=422)
 
 
+class BusinessError(AppError):
+    """通用业务逻辑错误"""
+    def __init__(self, message: str = "business error", code: int = -1, status_code: int = 400):
+        super().__init__(code=code, message=message, status_code=status_code)
+
+
 # ── 异常处理器注册 ────────────────────────────────────
 
 def register_exception_handlers(app: FastAPI) -> None:
