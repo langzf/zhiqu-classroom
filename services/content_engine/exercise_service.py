@@ -87,6 +87,10 @@ async def generate_exercises(
     )
 
     # 5) 调用 LLM
+    from config import get_settings
+    _settings = get_settings()
+    if not _settings.llm_api_key:
+        raise BusinessError("LLM API Key 未配置，请在 .env 中设置 LLM_API_KEY")
     llm = get_llm_client()
     system_msg = (
         "你是一位专业的中小学教师，擅长根据知识点出题。"

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_tutor.models import Conversation, Message
 from shared.base_model import generate_uuid7
-from shared.exceptions import NotFoundError, ValidationError
+from shared.exceptions import ForbiddenError, NotFoundError, ValidationError
 
 logger = structlog.get_logger()
 

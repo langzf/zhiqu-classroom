@@ -43,7 +43,7 @@ class ConversationOut(OrmBase):
     """会话响应"""
 
     id: UUID
-    student_id: str
+    student_id: UUID
     title: Optional[str]
     scene: str
     status: str
@@ -67,7 +67,7 @@ class MessageOut(OrmBase):
     """消息响应"""
 
     id: UUID
-    conversation_id: str
+    conversation_id: UUID
     role: str
     content: str
     token_count: Optional[int]

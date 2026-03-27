@@ -45,9 +45,9 @@ Svc = Annotated[TutorService, Depends(_build_service)]
 CurrentUser = Annotated[TokenPayload, Depends(get_current_user)]
 
 
-def _ensure_owner(conv_student_id: str, user: TokenPayload) -> None:
+def _ensure_owner(conv_student_id, user: TokenPayload) -> None:
     """确认当前用户是会话所有者（或管理员）"""
-    if user.role != "admin" and conv_student_id != user.sub:
+    if user.role != "admin" and str(conv_student_id) != str(user.sub):
         raise ForbiddenError("无权操作此会话")
 
 
