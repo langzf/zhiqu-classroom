@@ -1,15 +1,35 @@
-# Services 规划（v0）
+# 知趣课堂 - 后端服务
 
-## 子系统职责
-- `api-gateway`: 统一API入口、鉴权、限流、路由聚合。
-- `content-engine`: 教材解析、知识点抽取、知识点检索。
-- `media-generation`: 生成AI游戏配置、视频脚本、练习内容。
-- `learning-orchestrator`: 课后任务编排、任务状态流转（首期主流程服务）。
-- `user-profile`: 用户、学生档案、家长关系、权限。
-- `analytics-reporting`: 学习数据统计、报表与效果分析。
-- `notification`: 消息触达（站内信、短信/推送预留）。
-- `shared`: 公共库与通用协议（DTO、错误码、工具函数）。
+> 模块化单体，FastAPI + SQLAlchemy 2.0 async
 
-## 分期建议
-- 首期优先：`api-gateway`、`content-engine`、`media-generation`、`learning-orchestrator`、`user-profile`
-- 次期补齐：`analytics-reporting`、`notification`
+## MVP 服务模块
+
+| 模块 | 目录 | 职责 |
+|------|------|------|
+| 用户 | `user_profile/` | 认证、用户管理、家长绑定 |
+| 内容 | `content_engine/` | 教材上传、解析、知识点、向量化 |
+| AI 辅导 | `ai_tutor/` | 对话管理、RAG 检索增强 |
+| 学习 | `learning_core/` | 学习任务、进度记录 |
+| 共享 | `shared/` | 基类、统一响应、JWT、异常处理 |
+
+## 快速启动
+
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 数据库迁移
+alembic upgrade head
+
+# 启动
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## 代码约定
+
+- 数据库主键: UUID v7
+- 时间戳: UTC, `created_at` + `updated_at`
+- 软删除: `deleted_at`
+- API 路径: `/api/v1/{service}/{resource}`
+- 统一响应: `{"code": 0, "message": "ok", "data": {...}}`
+- 跨模块引用: UUID, 不建外键

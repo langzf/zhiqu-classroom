@@ -932,4 +932,260 @@ GET /api/v1/admin/sys-configs
 
 **Query Parameters**
 
-| 参数 | 类
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| config_group | STRING | 否 | 按分组筛选：`general` / `sms` / `llm` / `security` / `feature_flag` |
+| is_active | BOOLEAN | 否 | 按启用状态筛选 |
+
+**Response 200**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "items": [
+      {
+        "id": "uuid",
+        "config_key": "llm.default_model",
+        "config_value": "deepseek-v3",
+        "value_type": "string",
+        "config_group": "llm",
+        "description": "默认 LLM 模型",
+        "is_sensitive": false,
+        "is_active": true,
+        "updated_at": "2026-03-25T10:00:00Z"
+      }
+    ],
+    "total": 15
+  }
+}
+```
+
+> `is_sensitive = true` 的配置项，`config_value` 返回 `"***"` 脱敏值。
+
+---
+
+### 8.2 更新配置
+
+```
+PUT /api/v1/admin/sys-configs/:config_key
+```
+
+**Request Body**
+
+```json
+{
+  "config_value": "gpt-4o",
+  "change_reason": "切换默认模型"
+}
+```
+
+**Response 200**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "id": "uuid",
+    "config_key": "llm.default_model",
+    "config_value": "gpt-4o",
+    "value_type": "string",
+    "config_group": "llm",
+    "is_active": true,
+    "updated_at": "2026-03-25T15:30:00Z"
+  }
+}
+```
+
+> 每次更新自动写入 `sys_config_history`，并失效 Redis 缓存。
+
+---
+
+### 8.3 配置变更历史
+
+```
+GET /api/v1/admin/sys-configs/:config_key/history
+```
+
+**Query Parameters**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | INT | 否 | 页码，默认 1 |
+| page_size | INT | 否 | 每页条数，默认 20 |
+
+**Response 200**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "items": [
+      {
+        "id": "uuid",
+        "config_key": "llm.default_model",
+        "old_value": "deepseek-v3",
+        "new_value": "gpt-4o",
+        "change_reason": "切换默认模型",
+        "operator_id": "uuid",
+        "created_at": "2026-03-25T15:30:00Z"
+      }
+    ],
+    "total": 5,
+    "page": 1,
+    "page_size": 20
+  }
+}
+```
+
+---
+
+## 9. 审计日志
+
+查询管理员操作的审计日志（append-only，不可修改/删除）。
+
+### 9.1 审计日志列表
+
+```
+GET /api/v1/admin/audit-logs
+```
+
+**Query Parameters**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| action | STRING | 否 | 操作类型：`create` / `update` / `delete` / `login` / `export` / `config_change` / `role_change` |
+| resource_type | STRING | 否 | 资源类型：`user` / `textbook` / `task` / `sys_config` / `model_config` |
+| operator_id | UUID | 否 | 操作人 ID |
+| start_time | DATETIME | 否 | 起始时间 |
+| end_time | DATETIME | 否 | 结束时间 |
+| page | INT | 否 | 页码，默认 1 |
+| page_size | INT | 否 | 每页条数，默认 20，最大 100 |
+
+**Response 200**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "items": [
+      {
+        "id": "uuid",
+        "action": "config_change",
+        "resource_type": "sys_config",
+        "resource_id": "uuid",
+        "operator_id": "uuid",
+        "operator_role": "admin",
+        "operator_ip": "192.168.1.100",
+        "request_method": "PUT",
+        "request_path": "/api/v1/admin/sys-configs/llm.default_model",
+        "changes": {
+          "before": { "config_value": "deepseek-v3" },
+          "after": { "config_value": "gpt-4o" }
+        },
+        "trace_id": "abc123def456",
+        "created_at": "2026-03-25T15:30:00Z"
+      }
+    ],
+    "total": 320,
+    "page": 1,
+    "page_size": 20
+  }
+}
+```
+
+---
+
+### 9.2 审计日志详情
+
+```
+GET /api/v1/admin/audit-logs/:id
+```
+
+**Response 200**
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "id": "uuid",
+    "action": "role_change",
+    "resource_type": "user",
+    "resource_id": "uuid",
+    "operator_id": "uuid",
+    "operator_role": "admin",
+    "operator_ip": "192.168.1.100",
+    "user_agent": "Mozilla/5.0 ...",
+    "request_method": "PUT",
+    "request_path": "/api/v1/admin/users/uuid/role",
+    "changes": {
+      "before": { "role": "student" },
+      "after": { "role": "teacher" }
+    },
+    "metadata": {
+      "reason": "教师认证通过"
+    },
+    "trace_id": "abc123def456",
+    "created_at": "2026-03-25T15:30:00Z"
+  }
+}
+```
+
+---
+
+### 9.3 审计日志导出
+
+```
+POST /api/v1/admin/audit-logs/export
+```
+
+**Request Body**
+
+```json
+{
+  "start_time": "2026-03-01T00:00:00Z",
+  "end_time": "2026-03-25T23:59:59Z",
+  "action": "role_change",
+  "format": "csv"
+}
+```
+
+**Response 202**
+
+```json
+{
+  "code": 0,
+  "message": "导出任务已创建",
+  "data": {
+    "task_id": "uuid",
+    "status": "processing",
+    "estimated_seconds": 30
+  }
+}
+```
+
+> 导出为异步任务，完成后通过通知下发下载链接（MinIO 签名 URL，1h 有效）。
+
+---
+
+## 枚举定义汇总
+
+| 枚举名 | 值 | 使用位置 |
+|--------|-----|----------|
+| user_role | `student` / `guardian` / `admin` / `teacher` | 用户管理 |
+| user_status | `active` / `disabled` / `deleted` | 用户管理 |
+| review_status | `pending` / `approved` / `rejected` | 内容审核 |
+| review_content_type | `game` / `practice` / `exercise` / `video_script` | 内容审核 |
+| provider_status | `active` / `disabled` | LLM Provider |
+| model_status | `active` / `disabled` / `deprecated` | LLM 模型 |
+| routing_strategy | `priority` / `round_robin` / `cost_optimized` / `latency_optimized` | LLM 路由 |
+| call_status | `success` / `failed` / `timeout` | LLM 调用日志 |
+| config_group | `general` / `sms` / `llm` / `security` / `feature_flag` / `notification` / `media` | 系统配置 |
+| value_type | `string` / `number` / `boolean` / `json` | 系统配置 |
+| audit_action | `create` / `update` / `delete` / `login` / `logout` / `export` / `config_change` / `role_change` | 审计日志 |
+| audit_resource_type | `user` / `textbook` / `knowledge_point` / `resource` / `task` / `sys_config` / `model_config` / `notification_template` | 审计日志 |
