@@ -17,6 +17,7 @@ from deps import TokenPayload, get_current_user, require_role
 from shared.schemas import ok
 
 from .schemas import (
+    AdminUserUpdate,
     GuardianBindingCreate,
     GuardianBindingOut,
     LoginRequest,
@@ -128,3 +129,49 @@ async def list_children(svc: Svc, user: CurrentUser):
     """获取家长绑定的所有学生"""
     children = await svc.list_children(str(user.sub))
     return ok([UserOut.model_validate(c).model_dump() for c in children])
+
+
+# ── 管理员用户管理 ─────────────────────────────────────
+
+AdminUser = Annotated[TokenPayload, Depends(require_role("admin"))]
+
+
+@router.get("/users")
+async def list_users(
+    svc: Svc,
+    admin: AdminUser,
+    role: str | None = None,
+    is_active: bool | None = None,
+    keyword: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+):
+    """管理员: 分页查询用户列表"""
+    offset = (page - 1) * page_size
+    users, total = await svc.list_users(
+        role=role,
+        is_active=is_active,
+        keyword=keyword,
+        limit=page_size,
+        offset=offset,
+    )
+    return paged(
+        items=[UserOut.model_validate(u).model_dump() for u in users],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/users/{user_id}")
+async def get_user(user_id: UUID, svc: Svc, admin: AdminUser):
+    """管理员: 获取用户详情"""
+    u = await svc.admin_get_user(user_id)
+    return ok(UserOut.model_validate(u).model_dump())
+
+
+@router.patch("/users/{user_id}")
+async def update_user(user_id: UUID, body: AdminUserUpdate, svc: Svc, admin: AdminUser):
+    """管理员: 更新用户信息"""
+    u = await svc.admin_update_user(user_id, **body.model_dump(exclude_none=True))
+    return ok(UserOut.model_validate(u).model_dump())
