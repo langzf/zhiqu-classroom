@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -74,10 +74,21 @@ async def login(body: LoginRequest, svc: Svc):
     user_data = UserOut.model_validate(result["user"]).model_dump()
     return ok({
         "access_token": result["access_token"],
+        "refresh_token": result["refresh_token"],
         "token_type": result["token_type"],
         "expires_in": result["expires_in"],
         "user": user_data,
     })
+
+
+@router.post("/refresh")
+async def refresh_token(body: dict, svc: Svc):
+    """用 refresh_token 换取新的 access_token"""
+    rt = body.get("refresh_token")
+    if not rt:
+        raise HTTPException(status_code=422, detail="refresh_token is required")
+    result = await svc.refresh_access_token(rt)
+    return ok(result)
 
 
 # ── 个人信息 ─────────────────────────────────────────
@@ -107,7 +118,7 @@ async def bind_guardian(body: GuardianBindingCreate, svc: Svc, user: CurrentUser
     binding = await svc.bind_guardian(
         guardian_id=str(body.guardian_id),
         student_id=str(body.student_id),
-        relation=body.relation,
+        relation=body.relationship_type,
     )
     return ok(GuardianBindingOut.model_validate(binding).model_dump())
 

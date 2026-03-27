@@ -62,9 +62,11 @@ class UserService:
         if not user.is_active:
             raise ValidationError("账号已禁用")
 
-        token = self._sign_token(user)
+        access_token = self._sign_token(user)
+        refresh_token = self._sign_refresh_token(user)
         return {
-            "access_token": token,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
             "expires_in": 86400,
             "user": user,
@@ -113,7 +115,7 @@ class UserService:
         binding = GuardianBinding(
             guardian_id=guardian_id,
             student_id=student_id,
-            relation=relation,
+            relationship_type=relation,
         )
         self.db.add(binding)
         await self.db.flush()
@@ -150,3 +152,39 @@ class UserService:
             "jti": str(generate_uuid7()),
         }
         return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+    def _sign_refresh_token(self, user: User) -> str:
+        settings = get_settings()
+        now = datetime.now(timezone.utc)
+        payload = {
+            "sub": str(user.id),
+            "role": user.role,
+            "iat": now,
+            "exp": now + timedelta(days=7),
+            "jti": str(generate_uuid7()),
+            "type": "refresh",
+        }
+        return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+    async def refresh_access_token(self, refresh_token: str) -> dict:
+        """用 refresh_token 换取新的 access_token"""
+        settings = get_settings()
+        try:
+            payload = jwt.decode(
+                refresh_token, settings.jwt_secret, algorithms=["HS256"]
+            )
+        except jwt.ExpiredSignatureError:
+            raise ValidationError("refresh_token 已过期")
+        except jwt.InvalidTokenError:
+            raise ValidationError("无效的 refresh_token")
+
+        if payload.get("type") != "refresh":
+            raise ValidationError("非 refresh_token")
+
+        user = await self.get_user(payload["sub"])
+        new_access = self._sign_token(user)
+        return {
+            "access_token": new_access,
+            "token_type": "bearer",
+            "expires_in": 86400,
+        }
