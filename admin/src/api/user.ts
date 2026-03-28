@@ -8,7 +8,8 @@ export function register(data: RegisterRequest) {
 }
 
 export function login(phone: string) {
-  return unwrap<TokenOut>(client.post('/user/login', { phone }));
+  // admin 后台使用专用端点，仅允许 admin 角色登录
+  return unwrap<TokenOut>(client.post('/user/login/admin', { phone }));
 }
 
 /** Alias used by LoginPage — MVP backend ignores code */

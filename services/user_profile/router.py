@@ -70,8 +70,22 @@ async def register(body: RegisterRequest, svc: Svc):
 
 @router.post("/login")
 async def login(body: LoginRequest, svc: Svc):
-    """手机号登录（MVP 跳过验证码）"""
+    """手机号登录（通用 — 学生端使用，不存在则自动注册）"""
     result = await svc.login(phone=body.phone)
+    user_data = UserOut.model_validate(result["user"]).model_dump()
+    return ok({
+        "access_token": result["access_token"],
+        "refresh_token": result["refresh_token"],
+        "token_type": result["token_type"],
+        "expires_in": result["expires_in"],
+        "user": user_data,
+    })
+
+
+@router.post("/login/admin")
+async def login_admin(body: LoginRequest, svc: Svc):
+    """管理后台登录 — 仅允许 admin 角色"""
+    result = await svc.login(phone=body.phone, require_admin=True)
     user_data = UserOut.model_validate(result["user"]).model_dump()
     return ok({
         "access_token": result["access_token"],

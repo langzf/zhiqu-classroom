@@ -53,13 +53,34 @@ class UserService:
         await self.db.refresh(user)
         return user
 
-    async def login(self, phone: str) -> dict:
+    async def login(self, phone: str, *, require_admin: bool = False) -> dict:
         """
         手机号登录（MVP 跳过验证码校验，直接签发 token）。
+
+        Args:
+            phone: 手机号
+            require_admin: 若为 True，仅允许 admin 角色登录（管理后台专用）；
+                           若为 False（默认），用户不存在时自动注册为 student。
         """
         user = await self._get_by_phone(phone)
-        if not user:
-            raise NotFoundError("用户不存在")
+
+        if require_admin:
+            # 管理后台登录：用户必须存在且为 admin
+            # 统一错误消息，避免泄漏手机号是否已注册
+            if not user or user.role != "admin":
+                raise ValidationError("该账号无管理后台访问权限")
+        else:
+            # 学生端登录：不存在则自动注册
+            if not user:
+                user = User(
+                    phone=phone,
+                    nickname=f"用户{phone[-4:]}",
+                    role="student",
+                )
+                self.db.add(user)
+                await self.db.flush()
+                await self.db.refresh(user)
+
         if not user.is_active:
             raise ValidationError("账号已禁用")
 
