@@ -150,16 +150,16 @@ export default function TextbookDetail() {
                   <Space>
                     <Text strong>{kp.title}</Text>
                     <Tag color="blue">难度 {kp.difficulty}</Tag>
-                    <Tag color="orange">重要度 {kp.importance}</Tag>
+                    {kp.bloom_level && <Tag color="orange">{kp.bloom_level}</Tag>}
                   </Space>
                 ),
                 children: (
                   <div>
                     <Text>{kp.description || '暂无描述'}</Text>
-                    {kp.tags.length > 0 && (
+                    {kp.tags && Object.keys(kp.tags).length > 0 && (
                       <div style={{ marginTop: 8 }}>
-                        {kp.tags.map((t) => (
-                          <Tag key={t}>{t}</Tag>
+                        {Object.entries(kp.tags).map(([k, v]) => (
+                          <Tag key={k}>{`${k}: ${v}`}</Tag>
                         ))}
                       </div>
                     )}

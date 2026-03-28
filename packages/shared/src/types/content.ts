@@ -5,13 +5,11 @@ export interface Textbook {
   id: string;
   title: string;
   subject: Subject;
-  grade_range: string | null;
-  source_file_url: string | null;
+  grade_range: string;
+  source_file_url: string;
   cover_url: string | null;
   parse_status: ParseStatus;
-  metadata_: Record<string, unknown> | null;
   created_at: string;
-  updated_at: string;
 }
 
 /** 章节 */
@@ -21,7 +19,7 @@ export interface Chapter {
   parent_id: string | null;
   title: string;
   sort_order: number;
-  level: number;
+  depth: number;
   children?: Chapter[];
 }
 
@@ -32,9 +30,8 @@ export interface KnowledgePoint {
   title: string;
   description: string | null;
   difficulty: number;
-  importance: number;
-  sort_order: number;
-  tags: string[];
+  bloom_level: string | null;
+  tags: Record<string, unknown> | null;
 }
 
 /** 生成资源（练习题等） */

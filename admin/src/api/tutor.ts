@@ -145,11 +145,11 @@ export async function sendMessage(convId: string, content: string) {
 
 // ── Feedback ──
 
-export function submitFeedback(convId: string, messageId: string, data: {
+export function submitFeedback(messageId: string, data: {
   rating: number;
   comment?: string;
 }) {
   return unwrap<Record<string, unknown>>(
-    client.post(`/tutor/conversations/${convId}/messages/${messageId}/feedback`, data),
+    client.post(`/tutor/messages/${messageId}/feedback`, data),
   );
 }
