@@ -1,144 +1,199 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { Card, Table, Tag, Button, Space, Select, message, Popconfirm } from 'antd';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  MessageOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Space, Typography, Tag, message, Modal } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { listConversations, createConversation, archiveConversation } from '@/api/tutor';
-import type { Conversation } from '@zhiqu/shared';
-import { SUBJECT_LABELS } from '@zhiqu/shared';
-import { formatDate } from '@zhiqu/shared';
-import type { Subject } from '@zhiqu/shared';
+import {
+  listConversations,
+  createConversation,
+  deleteConversation,
+  type Conversation,
+} from '@/api/tutor';
 
-const { Title } = Typography;
-
-const statusColor: Record<string, string> = {
-  active: 'green',
-  archived: 'default',
-};
-const statusLabel: Record<string, string> = {
-  active: '进行中',
-  archived: '已归档',
+const SCENE_MAP: Record<string, { label: string; color: string }> = {
+  qa: { label: '知识问答', color: 'blue' },
+  explain: { label: '概念讲解', color: 'green' },
+  exercise: { label: '练习辅导', color: 'orange' },
+  general: { label: '自由对话', color: 'default' },
 };
 
 export default function ConversationList() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [sceneFilter, setSceneFilter] = useState<string | undefined>();
 
-  const fetchData = useCallback(async () => {
+  const fetchConversations = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listConversations({ limit: 50 });
-      setConversations(data);
-    } catch {
-      message.error('加载会话列表失败');
+      const res = await listConversations({
+        scene: sceneFilter,
+        page,
+        page_size: pageSize,
+      });
+      setConversations(res.items);
+      setTotal(res.total);
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sceneFilter, page, pageSize]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   const handleCreate = async () => {
     try {
-      const conv = await createConversation({ title: '新对话' });
+      const conv = await createConversation({
+        scene: 'general',
+        title: `新对话 ${new Date().toLocaleString('zh-CN')}`,
+      });
       message.success('创建成功');
       navigate(`/tutor/${conv.id}`);
-    } catch {
-      message.error('创建失败');
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : '创建失败');
     }
   };
 
-  const handleArchive = (id: string) => {
-    Modal.confirm({
-      title: '确认归档',
-      content: '归档后该会话将不可继续对话，确认归档吗？',
-      onOk: async () => {
-        try {
-          await archiveConversation(id);
-          message.success('已归档');
-          fetchData();
-        } catch {
-          message.error('归档失败');
-        }
-      },
-    });
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteConversation(id);
+      message.success('删除成功');
+      fetchConversations();
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : '删除失败');
+    }
   };
 
   const columns: ColumnsType<Conversation> = [
-    { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
     {
-      title: '科目',
-      dataIndex: 'subject',
-      key: 'subject',
-      width: 100,
-      render: (v: Subject | null) => v ? (SUBJECT_LABELS[v] || v) : '-',
+      title: '标题',
+      dataIndex: 'title',
+      ellipsis: true,
+      render: (val: string, record: Conversation) => (
+        <Button type="link" onClick={() => navigate(`/tutor/${record.id}`)}>
+          {val || '(无标题)'}
+        </Button>
+      ),
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => <Tag color={statusColor[v]}>{statusLabel[v] || v}</Tag>,
+      title: '场景',
+      dataIndex: 'scene',
+      width: 120,
+      render: (val: string) => {
+        const info = SCENE_MAP[val];
+        return info ? <Tag color={info.color}>{info.label}</Tag> : <Tag>{val}</Tag>;
+      },
     },
     {
       title: '消息数',
       dataIndex: 'message_count',
-      key: 'message_count',
-      width: 80,
+      width: 90,
+      align: 'center',
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      width: 90,
+      render: (val: boolean) => (
+        <Tag color={val ? 'green' : 'default'}>{val ? '进行中' : '已结束'}</Tag>
+      ),
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
-      key: 'created_at',
-      width: 170,
-      render: (v: string) => formatDate(v),
+      width: 180,
+      render: (val: string) => (val ? new Date(val).toLocaleString('zh-CN') : '-'),
     },
     {
-      title: '最后活跃',
+      title: '最后更新',
       dataIndex: 'updated_at',
-      key: 'updated_at',
-      width: 170,
-      render: (v: string) => formatDate(v),
+      width: 180,
+      render: (val: string) => (val ? new Date(val).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '操作',
-      key: 'actions',
-      width: 140,
+      width: 160,
       render: (_: unknown, record: Conversation) => (
         <Space>
-          <Button type="link" onClick={() => navigate(`/tutor/${record.id}`)}>
-            {record.status === 'active' ? '对话' : '查看'}
+          <Button
+            type="link"
+            size="small"
+            icon={<MessageOutlined />}
+            onClick={() => navigate(`/tutor/${record.id}`)}
+          >
+            对话
           </Button>
-          {record.status === 'active' && (
-            <Button type="link" danger onClick={() => handleArchive(record.id)}>
-              归档
+          <Popconfirm
+            title="确认删除该对话？"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
             </Button>
-          )}
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>AI 辅导对话</Title>
+    <Card
+      title="AI 导师对话"
+      extra={
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
+          <Select
+            placeholder="筛选场景"
+            allowClear
+            style={{ width: 140 }}
+            value={sceneFilter}
+            onChange={(val) => {
+              setSceneFilter(val);
+              setPage(1);
+            }}
+            options={Object.entries(SCENE_MAP).map(([k, v]) => ({
+              label: v.label,
+              value: k,
+            }))}
+          />
+          <Button icon={<ReloadOutlined />} onClick={fetchConversations}>
+            刷新
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
             新建对话
           </Button>
         </Space>
-      </div>
-
+      }
+    >
       <Table
         rowKey="id"
-        loading={loading}
-        dataSource={conversations}
         columns={columns}
-        pagination={{ pageSize: 20 }}
+        dataSource={conversations}
+        loading={loading}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          showSizeChanger: true,
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (p, ps) => {
+            setPage(p);
+            setPageSize(ps);
+          },
+        }}
       />
-    </div>
+    </Card>
   );
 }

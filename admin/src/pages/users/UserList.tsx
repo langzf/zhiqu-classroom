@@ -31,7 +31,7 @@ export default function UserList() {
       const data = await listUsers({
         page,
         page_size: 20,
-        search: search || undefined,
+        keyword: search || undefined,
         role: roleFilter,
       });
       // Handle both paginated and array responses
@@ -71,7 +71,7 @@ export default function UserList() {
       width: 100,
       render: (v: string) => (
         <Tag color={roleColors[v] || 'default'}>
-          {ROLE_LABELS[v] || v}
+          {ROLE_LABELS[v as keyof typeof ROLE_LABELS] || v}
         </Tag>
       ),
     },

@@ -1,110 +1,119 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Typography, Tag, message, Space, Select } from 'antd';
+import { useEffect, useState } from 'react';
+import { Table, Tag, Card, Typography, Space, Button, Select } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import type { LearningTask } from '@/api/learning';
+import { TASK_STATUS_LABELS } from '@zhiqu/shared';
 import { listTasks } from '@/api/learning';
-import type { LearningTask } from '@zhiqu/shared';
-import { formatDate } from '@zhiqu/shared';
 
 const { Title } = Typography;
 
-const statusColors: Record<string, string> = {
+const STATUS_COLORS: Record<string, string> = {
   pending: 'default',
   in_progress: 'processing',
   completed: 'success',
   expired: 'error',
 };
-const statusLabels: Record<string, string> = {
-  pending: '待开始',
-  in_progress: '进行中',
-  completed: '已完成',
-  expired: '已过期',
-};
-
-const taskTypeLabels: Record<string, string> = {
-  exercise: '练习',
-  reading: '阅读',
-  review: '复习',
-  quiz: '测验',
-};
 
 export default function TaskList() {
-  const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<LearningTask[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await listTasks({ status: statusFilter, limit: 50 });
-      setTasks(data);
+      const res = await listTasks({ page, page_size: pageSize, status: statusFilter });
+      setTasks(res.items);
+      setTotal(res.total);
     } catch {
-      message.error('加载学习任务失败');
+      // handled by global error handler
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  };
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [page, pageSize, statusFilter]);
 
   const columns: ColumnsType<LearningTask> = [
-    { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
     {
-      title: '类型',
-      dataIndex: 'task_type',
-      key: 'task_type',
-      width: 100,
-      render: (v: string) => <Tag>{taskTypeLabels[v] || v}</Tag>,
+      title: '任务标题',
+      dataIndex: 'title',
+      ellipsis: true,
+    },
+    {
+      title: '学生 ID',
+      dataIndex: 'student_id',
+      width: 280,
+      ellipsis: true,
     },
     {
       title: '状态',
       dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={statusColors[v] || 'default'}>{statusLabels[v] || v}</Tag>
+      width: 120,
+      render: (s: string) => (
+        <Tag color={STATUS_COLORS[s] ?? 'default'}>
+          {TASK_STATUS_LABELS[s as keyof typeof TASK_STATUS_LABELS] ?? s}
+        </Tag>
       ),
     },
     {
       title: '截止时间',
       dataIndex: 'due_date',
-      key: 'due_date',
-      width: 170,
-      render: (v: string) => v ? formatDate(v) : '-',
+      width: 180,
+      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
-      key: 'created_at',
-      width: 170,
-      render: (v: string) => formatDate(v),
+      width: 180,
+      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
     },
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+    <Card>
+      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <Title level={4} style={{ margin: 0 }}>学习任务</Title>
         <Space>
           <Select
             allowClear
-            placeholder="筛选状态"
-            style={{ width: 120 }}
+            placeholder="状态筛选"
+            style={{ width: 140 }}
             value={statusFilter}
             onChange={setStatusFilter}
-            options={Object.entries(statusLabels).map(([k, v]) => ({ value: k, label: v }))}
+            options={Object.entries(TASK_STATUS_LABELS).map(([k, v]) => ({
+              value: k,
+              label: v,
+            }))}
           />
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>
+            刷新
+          </Button>
         </Space>
-      </div>
-
+      </Space>
       <Table
         rowKey="id"
-        loading={loading}
-        dataSource={tasks}
         columns={columns}
-        pagination={{ pageSize: 20 }}
+        dataSource={tasks}
+        loading={loading}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          showSizeChanger: true,
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (p, s) => {
+            setPage(p);
+            setPageSize(s);
+          },
+        }}
       />
-    </div>
+    </Card>
   );
 }

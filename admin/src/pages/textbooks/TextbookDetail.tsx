@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Descriptions, Button, Spin, Tree, Typography, Tag, Card, Space, Empty, Collapse, message } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getTextbook, getChapterTree, getKnowledgePoints, triggerParse } from '@/api/content';
+import { getTextbook, getChapters, listKnowledgePoints, triggerParse } from '@/api/content';
 import type { Textbook, Chapter, KnowledgePoint } from '@zhiqu/shared';
 import { SUBJECT_LABELS, PARSE_STATUS_LABELS, formatDate } from '@zhiqu/shared';
 import type { Subject, ParseStatus } from '@zhiqu/shared';
 import type { DataNode } from 'antd/es/tree';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const parseStatusColor: Record<string, string> = {
   pending: 'default',
@@ -49,7 +49,7 @@ export default function TextbookDetail() {
     if (!id) return;
     setLoading(true);
     try {
-      const [tb, chs] = await Promise.all([getTextbook(id), getChapterTree(id)]);
+      const [tb, chs] = await Promise.all([getTextbook(id), getChapters(id)]);
       setTextbook(tb);
       setChapters(chs);
     } catch {
@@ -67,8 +67,8 @@ export default function TextbookDetail() {
     setSelectedChapter(chapterId);
     setKpLoading(true);
     try {
-      const kps = await getKnowledgePoints(chapterId);
-      setKnowledgePoints(kps);
+      const res = await listKnowledgePoints({ chapter_id: chapterId, page: 1, page_size: 200 });
+      setKnowledgePoints(res.items);
     } catch {
       message.error('加载知识点失败');
     } finally {

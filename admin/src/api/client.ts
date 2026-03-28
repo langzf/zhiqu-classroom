@@ -46,3 +46,23 @@ export async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Pro
   }
   return res.data.data;
 }
+
+/** Helper: extract paged response { data: T[], meta } → { items, total, page, page_size } */
+export interface PagedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export async function unwrapPaged<T>(
+  promise: Promise<{ data: { code: number; message: string; data: T[]; meta: { page: number; page_size: number; total: number; total_pages: number } } }>,
+): Promise<PagedResult<T>> {
+  const res = await promise;
+  if (res.data.code !== 200 && res.data.code !== 0) {
+    throw new Error(res.data.message || 'Unknown error');
+  }
+  const { data: items, meta } = res.data;
+  return { items, ...meta };
+}

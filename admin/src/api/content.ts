@@ -1,28 +1,13 @@
-import client, { unwrap } from './client';
-import type { Textbook, Chapter, KnowledgePoint, GeneratedResource, PaginatedData } from '@zhiqu/shared';
+import type { Textbook, Chapter, KnowledgePoint, GeneratedResource } from '@zhiqu/shared';
+import client, { unwrap, unwrapPaged } from './client';
 
 // ── Textbooks ──
-export function listTextbooks(params?: { page?: number; page_size?: number; subject?: string }) {
-  return unwrap<PaginatedData<Textbook>>(client.get('/content/textbooks', { params }));
-}
 
-export function getTextbook(id: string) {
-  return unwrap<Textbook>(client.get(`/content/textbooks/${id}`));
-}
-
-export function createTextbook(data: { title: string; subject: string; grade_range?: string }) {
+export function createTextbook(data: { title: string; subject: string; grade: string; publisher?: string }) {
   return unwrap<Textbook>(client.post('/content/textbooks', data));
 }
 
-export function updateTextbook(id: string, data: { title?: string; subject?: string }) {
-  return unwrap<Textbook>(client.patch(`/content/textbooks/${id}`, data));
-}
-
-export function uploadTextbook(file: File, title: string, subject: string) {
-  const form = new FormData();
-  form.append('file', file);
-  form.append('title', title);
-  form.append('subject', subject);
+export function uploadTextbook(form: FormData) {
   return unwrap<Textbook>(
     client.post('/content/textbooks/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -31,30 +16,49 @@ export function uploadTextbook(file: File, title: string, subject: string) {
   );
 }
 
+export function listTextbooks(params?: { subject?: string; grade?: string; status?: string; page?: number; page_size?: number }) {
+  return unwrapPaged<Textbook>(client.get('/content/textbooks', { params }));
+}
+
+export function getTextbook(id: string) {
+  return unwrap<Textbook>(client.get(`/content/textbooks/${id}`));
+}
+
+export function updateTextbook(id: string, data: Partial<Textbook>) {
+  return unwrap<Textbook>(client.patch(`/content/textbooks/${id}`, data));
+}
+
+export function deleteTextbook(id: string) {
+  return unwrap<void>(client.delete(`/content/textbooks/${id}`));
+}
+
 export function triggerParse(textbookId: string) {
-  return unwrap<{ task_id: string }>(client.post(`/content/textbooks/${textbookId}/parse`));
+  return unwrap<Textbook>(client.post(`/content/textbooks/${textbookId}/parse`));
 }
 
 // ── Chapters ──
-export function getChapterTree(textbookId: string) {
+
+export function getChapters(textbookId: string) {
   return unwrap<Chapter[]>(client.get(`/content/textbooks/${textbookId}/chapters`));
 }
 
 // ── Knowledge Points ──
-export function getKnowledgePoints(chapterId: string) {
-  return unwrap<KnowledgePoint[]>(client.get(`/content/chapters/${chapterId}/knowledge-points`));
+
+export function listKnowledgePoints(params?: { subject?: string; chapter_id?: string; page?: number; page_size?: number }) {
+  return unwrapPaged<KnowledgePoint>(client.get('/content/knowledge-points', { params }));
 }
 
-export function searchKnowledgePoints(data: { query: string; limit?: number }) {
+export function searchKnowledgePoints(data: { query: string; subject?: string; top_k?: number }) {
   return unwrap<KnowledgePoint[]>(client.post('/content/knowledge-points/search', data));
 }
 
 // ── Generated Resources (Exercises) ──
+
 export function generateExercises(data: {
   knowledge_point_id: string;
   exercise_type?: string;
-  count?: number;
   difficulty?: number;
+  count?: number;
 }) {
   return unwrap<GeneratedResource>(client.post('/content/exercises/generate', data));
 }
@@ -69,4 +73,8 @@ export function listExercises(params?: {
   offset?: number;
 }) {
   return unwrap<GeneratedResource[]>(client.get('/content/exercises', { params }));
+}
+
+export function getKpResources(kpId: string) {
+  return unwrap<GeneratedResource[]>(client.get(`/content/knowledge-points/${kpId}/resources`));
 }

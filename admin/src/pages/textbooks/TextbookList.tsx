@@ -47,7 +47,7 @@ export default function TextbookList() {
 
   const handleCreate = async (values: { title: string; subject: string; grade_range?: string }) => {
     try {
-      await createTextbook(values);
+      await createTextbook({ title: values.title, subject: values.subject, grade: values.grade_range || '' });
       message.success('创建成功');
       setCreateOpen(false);
       form.resetFields();
@@ -60,7 +60,11 @@ export default function TextbookList() {
   const handleUpload = async (values: { title: string; subject: string; file: { file: File } }) => {
     try {
       const file = (values.file as unknown as { file: File }).file;
-      await uploadTextbook(file, values.title, values.subject);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', values.title);
+      formData.append('subject', values.subject);
+      await uploadTextbook(formData);
       message.success('上传成功');
       setUploadOpen(false);
       form.resetFields();

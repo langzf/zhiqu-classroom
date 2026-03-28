@@ -1,40 +1,56 @@
-import client, { unwrap } from './client';
-import type { TokenOut, UserInfo, LoginRequest, RegisterRequest } from '@zhiqu/shared';
+import type { UserInfo, TokenOut, RegisterRequest } from '@zhiqu/shared';
+import client, { unwrap, unwrapPaged, type PagedResult } from './client';
 
-/** 登录 */
-export function login(data: LoginRequest) {
-  return unwrap<TokenOut>(client.post('/user/login', data));
-}
+// ── Auth ────────────────────────────────────────────────
 
-/** 注册 */
 export function register(data: RegisterRequest) {
   return unwrap<TokenOut>(client.post('/user/register', data));
 }
 
-/** 获取当前用户信息 */
-export function getMe() {
+export function login(phone: string) {
+  return unwrap<TokenOut>(client.post('/user/login', { phone }));
+}
+
+/** Alias used by LoginPage — MVP backend ignores code */
+export function loginByPhone(phone: string, _code?: string) {
+  return login(phone);
+}
+
+/** MVP: no-op — backend uses mock SMS provider */
+export async function sendCode(_phone: string): Promise<void> {
+  // no-op for MVP; backend mock always accepts any code
+}
+
+export function refreshToken() {
+  return unwrap<TokenOut>(client.post('/user/refresh'));
+}
+
+// ── Profile ─────────────────────────────────────────────
+
+export function getProfile() {
   return unwrap<UserInfo>(client.get('/user/me'));
 }
 
-/** 更新当前用户信息 */
-export function updateMe(data: Partial<Pick<UserInfo, 'nickname' | 'avatar_url'>>) {
+export function updateProfile(data: Partial<UserInfo>) {
   return unwrap<UserInfo>(client.patch('/user/me', data));
 }
 
-/** 刷新 token */
-export function refreshToken(refresh_token: string) {
-  return unwrap<{ access_token: string; token_type: string }>(
-    client.post('/user/refresh', { refresh_token }),
-  );
-}
+// ── Admin ───────────────────────────────────────────────
 
-/** 获取用户列表（管理员） */
-export async function listUsers(params?: {
+export function listUsers(params?: {
+  role?: string;
+  is_active?: boolean;
+  keyword?: string;
   page?: number;
   page_size?: number;
-  search?: string;
-  role?: string;
-}) {
-  const res = await client.get('/user/users', { params });
-  return res.data?.data ?? res.data;
+}): Promise<PagedResult<UserInfo>> {
+  return unwrapPaged<UserInfo>(client.get('/user/users', { params }));
+}
+
+export function getUser(userId: string) {
+  return unwrap<UserInfo>(client.get(`/user/users/${userId}`));
+}
+
+export function updateUser(userId: string, data: Partial<UserInfo>) {
+  return unwrap<UserInfo>(client.patch(`/user/users/${userId}`, data));
 }

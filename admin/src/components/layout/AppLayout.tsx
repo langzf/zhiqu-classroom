@@ -4,9 +4,12 @@ import { Layout, Menu, Avatar, Dropdown, Button, theme } from 'antd';
 import {
   BookOutlined,
   DashboardOutlined,
+  EditOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MessageOutlined,
+  OrderedListOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
@@ -16,6 +19,10 @@ const { Header, Sider, Content } = Layout;
 const menuItems = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
   { key: '/textbooks', icon: <BookOutlined />, label: '教材管理' },
+  { key: '/exercises', icon: <EditOutlined />, label: '练习题管理' },
+  { key: '/tutor', icon: <MessageOutlined />, label: 'AI 导师' },
+  { key: '/tasks', icon: <OrderedListOutlined />, label: '学习任务' },
+  { key: '/users', icon: <UserOutlined />, label: '用户管理' },
 ];
 
 export default function AppLayout() {

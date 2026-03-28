@@ -1,53 +1,129 @@
-import client from './client';
-import type { LearningTask, LearningRecord } from '@zhiqu/shared';
+import client, { unwrap, unwrapPaged, type PagedResult } from './client';
 
-/* ---------- tasks ---------- */
+// ── Types matching backend schemas ──
 
-export async function createTask(data: {
+export interface TaskItem {
+  id: string;
+  task_id: string;
+  item_type: string;
+  resource_id: string | null;
+  knowledge_point_id: string | null;
   title: string;
+  config: Record<string, unknown> | null;
+  sort_order: number;
+}
+
+export interface LearningTask {
+  id: string;
+  title: string;
+  description: string | null;
   task_type: string;
-  knowledge_point_id?: string;
-  resource_id?: string;
-  due_date?: string;
-}) {
-  const res = await client.post<LearningTask>('/learning/tasks', data);
-  return res.data;
+  status: string;
+  created_by: string;
+  subject: string | null;
+  grade_range: string | null;
+  publish_at: string | null;
+  deadline: string | null;
+  config: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export async function listTasks(params?: {
+export interface TaskDetail extends LearningTask {
+  items: TaskItem[];
+}
+
+export interface TaskProgress {
+  id: string;
+  task_id: string;
+  student_id: string;
+  status: string;
+  score: number | null;
+  started_at: string | null;
+  completed_at: string | null;
+  item_progress: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Admin: Task CRUD ──
+
+export function createTask(data: {
+  title: string;
+  description?: string;
+  task_type?: string;
+  subject?: string;
+  grade_range?: string;
+  publish_at?: string;
+  deadline?: string;
+  config?: Record<string, unknown>;
+  items?: Array<{
+    item_type: string;
+    title: string;
+    resource_id?: string;
+    knowledge_point_id?: string;
+    config?: Record<string, unknown>;
+    sort_order?: number;
+  }>;
+}) {
+  return unwrap<TaskDetail>(client.post('/learning/tasks', data));
+}
+
+export function listTasks(params?: {
   status?: string;
-  limit?: number;
-  offset?: number;
+  subject?: string;
+  task_type?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<PagedResult<LearningTask>> {
+  return unwrapPaged<LearningTask>(client.get('/learning/tasks', { params }));
+}
+
+export function getTask(taskId: string) {
+  return unwrap<TaskDetail>(client.get(`/learning/tasks/${taskId}`));
+}
+
+export function updateTask(taskId: string, data: Partial<{
+  title: string;
+  description: string;
+  task_type: string;
+  subject: string;
+  grade_range: string;
+  publish_at: string;
+  deadline: string;
+  config: Record<string, unknown>;
+  status: string;
+}>) {
+  return unwrap<TaskDetail>(client.patch(`/learning/tasks/${taskId}`, data));
+}
+
+export function publishTask(taskId: string) {
+  return unwrap<LearningTask>(client.post(`/learning/tasks/${taskId}/publish`));
+}
+
+export function archiveTask(taskId: string) {
+  return unwrap<LearningTask>(client.post(`/learning/tasks/${taskId}/archive`));
+}
+
+export function deleteTask(taskId: string) {
+  return unwrap<{ task_id: string; deleted: boolean }>(client.delete(`/learning/tasks/${taskId}`));
+}
+
+// ── Admin: Task Items ──
+
+export function addTaskItem(taskId: string, data: {
+  item_type: string;
+  title: string;
+  resource_id?: string;
+  knowledge_point_id?: string;
+  config?: Record<string, unknown>;
+  sort_order?: number;
 }) {
-  const res = await client.get<LearningTask[]>('/learning/tasks', { params });
-  return res.data;
+  return unwrap<TaskItem>(client.post(`/learning/tasks/${taskId}/items`, data));
 }
 
-export async function getTask(id: string) {
-  const res = await client.get<LearningTask>(`/learning/tasks/${id}`);
-  return res.data;
-}
-
-export async function updateTaskStatus(id: string, status: string) {
-  const res = await client.patch(`/learning/tasks/${id}`, { status });
-  return res.data;
-}
-
-/* ---------- records ---------- */
-
-export async function submitRecord(taskId: string, data: {
-  score?: number;
-  answer_json?: Record<string, unknown>;
-  duration_seconds?: number;
-}) {
-  const res = await client.post<LearningRecord>(
-    `/learning/tasks/${taskId}/records`,
-    data,
+export function removeTaskItem(taskId: string, itemId: string) {
+  return unwrap<{ item_id: string; deleted: boolean }>(
+    client.delete(`/learning/tasks/${taskId}/items/${itemId}`),
   );
-  return res.data;
-}
-
-export async function listRecords(taskId: string) {
-  const res = await client.get<LearningRecord[]>(`/learning/tasks/${taskId}/records`);
-  return res.data;
 }

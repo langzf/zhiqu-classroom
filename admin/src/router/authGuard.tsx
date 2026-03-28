@@ -1,12 +1,16 @@
-import { Navigate } from 'react-router-dom';
+import React from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 
-export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const token = useAuthStore((s) => s.token);
+const AuthGuard: React.FC = () => {
+  const { token } = useAuthStore();
+  const location = useLocation();
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return <>{children}</>;
-}
+  return <Outlet />;
+};
+
+export default AuthGuard;
