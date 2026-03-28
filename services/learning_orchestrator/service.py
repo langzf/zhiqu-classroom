@@ -182,6 +182,17 @@ class LearningService:
         logger.info("task_item_added", task_id=task_id, item_id=str(item.id))
         return item
 
+    async def get_task_items(self, task_id: str) -> list[TaskItem]:
+        """获取任务的所有子项"""
+        await self.get_task(task_id)  # 确认任务存在
+        stmt = (
+            select(TaskItem)
+            .where(TaskItem.task_id == task_id)
+            .order_by(TaskItem.sort_order)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def remove_task_item(self, item_id: str) -> None:
         """删除任务子项（硬删除）"""
         stmt = select(TaskItem).where(TaskItem.id == item_id)

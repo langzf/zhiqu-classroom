@@ -4,12 +4,12 @@ import client, { unwrap, unwrapPaged } from './client';
 // ── Textbooks ──
 
 export function createTextbook(data: { title: string; subject: string; grade: string; publisher?: string }) {
-  return unwrap<Textbook>(client.post('/content/textbooks', data));
+  return unwrap<Textbook>(client.post('/admin/content/textbooks', data));
 }
 
 export function uploadTextbook(form: FormData) {
   return unwrap<Textbook>(
-    client.post('/content/textbooks/upload', form, {
+    client.post('/admin/content/textbooks/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120_000,
     }),
@@ -17,39 +17,39 @@ export function uploadTextbook(form: FormData) {
 }
 
 export function listTextbooks(params?: { subject?: string; grade?: string; status?: string; page?: number; page_size?: number }) {
-  return unwrapPaged<Textbook>(client.get('/content/textbooks', { params }));
+  return unwrapPaged<Textbook>(client.get('/admin/content/textbooks', { params }));
 }
 
 export function getTextbook(id: string) {
-  return unwrap<Textbook>(client.get(`/content/textbooks/${id}`));
+  return unwrap<Textbook>(client.get(`/admin/content/textbooks/${id}`));
 }
 
 export function updateTextbook(id: string, data: Partial<Textbook>) {
-  return unwrap<Textbook>(client.patch(`/content/textbooks/${id}`, data));
+  return unwrap<Textbook>(client.patch(`/admin/content/textbooks/${id}`, data));
 }
 
 export function deleteTextbook(id: string) {
-  return unwrap<void>(client.delete(`/content/textbooks/${id}`));
+  return unwrap<void>(client.delete(`/admin/content/textbooks/${id}`));
 }
 
 export function triggerParse(textbookId: string) {
-  return unwrap<Textbook>(client.post(`/content/textbooks/${textbookId}/parse`));
+  return unwrap<Textbook>(client.post(`/admin/content/textbooks/${textbookId}/parse`));
 }
 
 // ── Chapters ──
 
 export function getChapters(textbookId: string) {
-  return unwrap<Chapter[]>(client.get(`/content/textbooks/${textbookId}/chapters`));
+  return unwrap<Chapter[]>(client.get(`/admin/content/textbooks/${textbookId}/chapters`));
 }
 
 // ── Knowledge Points ──
 
 export function listKnowledgePoints(params?: { subject?: string; chapter_id?: string; page?: number; page_size?: number }) {
-  return unwrapPaged<KnowledgePoint>(client.get('/content/knowledge-points', { params }));
+  return unwrapPaged<KnowledgePoint>(client.get('/admin/content/knowledge-points', { params }));
 }
 
 export function searchKnowledgePoints(data: { query: string; subject?: string; top_k?: number }) {
-  return unwrap<KnowledgePoint[]>(client.post('/content/knowledge-points/search', data));
+  return unwrap<KnowledgePoint[]>(client.post('/admin/content/knowledge-points/search', data));
 }
 
 // ── Generated Resources (Exercises) ──
@@ -60,11 +60,11 @@ export function generateExercises(data: {
   difficulty?: number;
   count?: number;
 }) {
-  return unwrap<GeneratedResource>(client.post('/content/exercises/generate', data));
+  return unwrap<GeneratedResource>(client.post('/admin/content/exercises/generate', data));
 }
 
 export function getExercise(resourceId: string) {
-  return unwrap<GeneratedResource>(client.get(`/content/exercises/${resourceId}`));
+  return unwrap<GeneratedResource>(client.get(`/admin/content/exercises/${resourceId}`));
 }
 
 export function listExercises(params?: {
@@ -72,9 +72,9 @@ export function listExercises(params?: {
   limit?: number;
   offset?: number;
 }) {
-  return unwrap<GeneratedResource[]>(client.get('/content/exercises', { params }));
+  return unwrap<GeneratedResource[]>(client.get('/admin/content/exercises', { params }));
 }
 
 export function getKpResources(kpId: string) {
-  return unwrap<GeneratedResource[]>(client.get(`/content/knowledge-points/${kpId}/resources`));
+  return unwrap<GeneratedResource[]>(client.get(`/admin/content/knowledge-points/${kpId}/resources`));
 }

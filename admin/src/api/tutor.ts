@@ -33,7 +33,7 @@ export function createConversation(data: {
   knowledge_point_id?: string;
   context_snapshot?: Record<string, unknown>;
 }) {
-  return unwrap<Conversation>(client.post('/tutor/conversations', data));
+  return unwrap<Conversation>(client.post('/admin/tutor/conversations', data));
 }
 
 export function listConversations(params?: {
@@ -41,20 +41,20 @@ export function listConversations(params?: {
   page?: number;
   page_size?: number;
 }): Promise<PagedResult<Conversation>> {
-  return unwrapPaged<Conversation>(client.get('/tutor/conversations', { params }));
+  return unwrapPaged<Conversation>(client.get('/admin/tutor/conversations', { params }));
 }
 
 export function getConversation(convId: string) {
-  return unwrap<Conversation>(client.get(`/tutor/conversations/${convId}`));
+  return unwrap<Conversation>(client.get(`/admin/tutor/conversations/${convId}`));
 }
 
 export function updateConversation(convId: string, data: { title?: string; is_active?: boolean }) {
-  return unwrap<Conversation>(client.patch(`/tutor/conversations/${convId}`, data));
+  return unwrap<Conversation>(client.patch(`/admin/tutor/conversations/${convId}`, data));
 }
 
 export function deleteConversation(convId: string) {
   return unwrap<{ conversation_id: string; deleted: boolean }>(
-    client.delete(`/tutor/conversations/${convId}`),
+    client.delete(`/admin/tutor/conversations/${convId}`),
   );
 }
 
@@ -62,7 +62,7 @@ export function deleteConversation(convId: string) {
 
 export function listMessages(convId: string, params?: { page?: number; page_size?: number }): Promise<PagedResult<Message>> {
   return unwrapPaged<Message>(
-    client.get(`/tutor/conversations/${convId}/messages`, { params }),
+    client.get(`/admin/tutor/conversations/${convId}/messages`, { params }),
   );
 }
 
@@ -139,7 +139,7 @@ export async function sendMessageStream(
 /** Send message (non-streaming, returns both user and assistant messages) */
 export async function sendMessage(convId: string, content: string) {
   return unwrap<{ user_message: Message; assistant_message: Message }>(
-    client.post(`/tutor/conversations/${convId}/messages`, { content }),
+    client.post(`/admin/tutor/conversations/${convId}/messages`, { content }),
   );
 }
 
@@ -150,6 +150,6 @@ export function submitFeedback(messageId: string, data: {
   comment?: string;
 }) {
   return unwrap<Record<string, unknown>>(
-    client.post(`/tutor/messages/${messageId}/feedback`, data),
+    client.post(`/admin/tutor/messages/${messageId}/feedback`, data),
   );
 }

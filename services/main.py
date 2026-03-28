@@ -89,15 +89,27 @@ register_exception_handlers(app)
 
 # ── 路由注册 ──────────────────────────────────────────
 
+# 用户认证（公共，无 admin/student 前缀区分）
 from user_profile.router import router as user_router          # noqa: E402
-from content_engine.router import router as content_router      # noqa: E402
-from ai_tutor.router import router as tutor_router              # noqa: E402
-from learning_orchestrator.router import router as learning_router  # noqa: E402
-
 app.include_router(user_router)
-app.include_router(content_router)
-app.include_router(tutor_router)
-app.include_router(learning_router)
+
+# Admin 路由 → /api/v1/admin/{service}
+from content_engine.router_admin import router as content_admin      # noqa: E402
+from ai_tutor.router_admin import router as tutor_admin              # noqa: E402
+from learning_orchestrator.router_admin import router as learning_admin  # noqa: E402
+
+app.include_router(content_admin, prefix="/api/v1/admin")
+app.include_router(tutor_admin, prefix="/api/v1/admin")
+app.include_router(learning_admin, prefix="/api/v1/admin")
+
+# Student 路由 → /api/v1/{service}
+from content_engine.router_student import router as content_student      # noqa: E402
+from ai_tutor.router_student import router as tutor_student              # noqa: E402
+from learning_orchestrator.router_student import router as learning_student  # noqa: E402
+
+app.include_router(content_student, prefix="/api/v1")
+app.include_router(tutor_student, prefix="/api/v1")
+app.include_router(learning_student, prefix="/api/v1")
 
 
 # ── 健康检查 ──────────────────────────────────────────

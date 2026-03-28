@@ -66,7 +66,7 @@ export function createTask(data: {
     sort_order?: number;
   }>;
 }) {
-  return unwrap<TaskDetail>(client.post('/learning/tasks', data));
+  return unwrap<TaskDetail>(client.post('/admin/learning/tasks', data));
 }
 
 export function listTasks(params?: {
@@ -76,11 +76,11 @@ export function listTasks(params?: {
   page?: number;
   page_size?: number;
 }): Promise<PagedResult<LearningTask>> {
-  return unwrapPaged<LearningTask>(client.get('/learning/tasks', { params }));
+  return unwrapPaged<LearningTask>(client.get('/admin/learning/tasks', { params }));
 }
 
 export function getTask(taskId: string) {
-  return unwrap<TaskDetail>(client.get(`/learning/tasks/${taskId}`));
+  return unwrap<TaskDetail>(client.get(`/admin/learning/tasks/${taskId}`));
 }
 
 export function updateTask(taskId: string, data: Partial<{
@@ -94,19 +94,19 @@ export function updateTask(taskId: string, data: Partial<{
   config: Record<string, unknown>;
   status: string;
 }>) {
-  return unwrap<TaskDetail>(client.patch(`/learning/tasks/${taskId}`, data));
+  return unwrap<TaskDetail>(client.patch(`/admin/learning/tasks/${taskId}`, data));
 }
 
 export function publishTask(taskId: string) {
-  return unwrap<LearningTask>(client.post(`/learning/tasks/${taskId}/publish`));
+  return unwrap<LearningTask>(client.post(`/admin/learning/tasks/${taskId}/publish`));
 }
 
 export function archiveTask(taskId: string) {
-  return unwrap<LearningTask>(client.post(`/learning/tasks/${taskId}/archive`));
+  return unwrap<LearningTask>(client.post(`/admin/learning/tasks/${taskId}/archive`));
 }
 
 export function deleteTask(taskId: string) {
-  return unwrap<{ task_id: string; deleted: boolean }>(client.delete(`/learning/tasks/${taskId}`));
+  return unwrap<{ task_id: string; deleted: boolean }>(client.delete(`/admin/learning/tasks/${taskId}`));
 }
 
 // ── Admin: Task Items ──
@@ -119,11 +119,11 @@ export function addTaskItem(taskId: string, data: {
   config?: Record<string, unknown>;
   sort_order?: number;
 }) {
-  return unwrap<TaskItem>(client.post(`/learning/tasks/${taskId}/items`, data));
+  return unwrap<TaskItem>(client.post(`/admin/learning/tasks/${taskId}/items`, data));
 }
 
 export function removeTaskItem(taskId: string, itemId: string) {
   return unwrap<{ item_id: string; deleted: boolean }>(
-    client.delete(`/learning/tasks/${taskId}/items/${itemId}`),
+    client.delete(`/admin/learning/tasks/${taskId}/items/${itemId}`),
   );
 }
