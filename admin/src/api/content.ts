@@ -1,80 +1,95 @@
+import type { ApiResponse, PaginatedData } from '@zhiqu/shared';
 import type { Textbook, Chapter, KnowledgePoint, GeneratedResource } from '@zhiqu/shared';
-import client, { unwrap, unwrapPaged } from './client';
+import { client, unwrap, unwrapPaged, unwrapList } from './client';
 
-// ── Textbooks ──
+// ── 教材 ──
 
-export function createTextbook(data: { title: string; subject: string; grade: string; publisher?: string }) {
-  return unwrap<Textbook>(client.post('/admin/content/textbooks', data));
+export function createTextbook(data: { title: string; subject: string; grade: string; press?: string; cover_url?: string }) {
+  return client.post<ApiResponse<Textbook>>('/admin/content/textbooks', data).then(unwrap);
 }
 
-export function uploadTextbook(form: FormData) {
-  return unwrap<Textbook>(
-    client.post('/admin/content/textbooks/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120_000,
-    }),
-  );
+export function listTextbooks(params: { page?: number; page_size?: number; subject?: string; grade?: string } = {}) {
+  return client.get<ApiResponse<PaginatedData<Textbook>>>('/admin/content/textbooks', { params }).then(unwrapPaged);
 }
 
-export function listTextbooks(params?: { subject?: string; grade?: string; status?: string; page?: number; page_size?: number }) {
-  return unwrapPaged<Textbook>(client.get('/admin/content/textbooks', { params }));
-}
-
-export function getTextbook(id: string) {
-  return unwrap<Textbook>(client.get(`/admin/content/textbooks/${id}`));
-}
-
-export function updateTextbook(id: string, data: Partial<Textbook>) {
-  return unwrap<Textbook>(client.patch(`/admin/content/textbooks/${id}`, data));
+export function updateTextbook(id: string, data: Partial<{ title: string; subject: string; grade: string; press: string; cover_url: string }>) {
+  return client.patch<ApiResponse<Textbook>>(`/admin/content/textbooks/${id}`, data).then(unwrap);
 }
 
 export function deleteTextbook(id: string) {
-  return unwrap<void>(client.delete(`/admin/content/textbooks/${id}`));
+  return client.delete(`/admin/content/textbooks/${id}`);
 }
 
-export function triggerParse(textbookId: string) {
-  return unwrap<Textbook>(client.post(`/admin/content/textbooks/${textbookId}/parse`));
+// ── 章节 ──
+
+export function createChapter(textbookId: string, data: { title: string; parent_id?: string; sort_order?: number }) {
+  return client.post<ApiResponse<Chapter>>(`/admin/content/textbooks/${textbookId}/chapters`, data).then(unwrap);
 }
 
-// ── Chapters ──
-
-export function getChapters(textbookId: string) {
-  return unwrap<Chapter[]>(client.get(`/admin/content/textbooks/${textbookId}/chapters`));
+export function listChapters(textbookId: string) {
+  return client.get<ApiResponse<Chapter[]>>(`/admin/content/textbooks/${textbookId}/chapters`).then(unwrapList);
 }
 
-// ── Knowledge Points ──
+// ── 知识点 ──
 
-export function listKnowledgePoints(params?: { subject?: string; chapter_id?: string; page?: number; page_size?: number }) {
-  return unwrapPaged<KnowledgePoint>(client.get('/admin/content/knowledge-points', { params }));
+export function createKnowledgePoint(chapterId: string, data: { name: string; description?: string; difficulty?: number }) {
+  return client.post<ApiResponse<KnowledgePoint>>(`/admin/content/chapters/${chapterId}/knowledge-points`, data).then(unwrap);
 }
 
-export function searchKnowledgePoints(data: { query: string; subject?: string; top_k?: number }) {
-  return unwrap<KnowledgePoint[]>(client.post('/admin/content/knowledge-points/search', data));
+export function listKnowledgePoints(chapterId: string) {
+  return client.get<ApiResponse<KnowledgePoint[]>>(`/admin/content/chapters/${chapterId}/knowledge-points`).then(unwrapList);
 }
 
-// ── Generated Resources (Exercises) ──
-
-export function generateExercises(data: {
-  knowledge_point_id: string;
-  exercise_type?: string;
-  difficulty?: number;
-  count?: number;
-}) {
-  return unwrap<GeneratedResource>(client.post('/admin/content/exercises/generate', data));
+export function updateKnowledgePoint(kpId: string, data: Partial<{ name: string; description: string; difficulty: number }>) {
+  return client.patch<ApiResponse<KnowledgePoint>>(`/admin/content/knowledge-points/${kpId}`, data).then(unwrap);
 }
 
-export function getExercise(resourceId: string) {
-  return unwrap<GeneratedResource>(client.get(`/admin/content/exercises/${resourceId}`));
+export function deleteKnowledgePoint(kpId: string) {
+  return client.delete(`/admin/content/knowledge-points/${kpId}`);
 }
 
-export function listExercises(params?: {
-  exercise_type?: string;
-  limit?: number;
-  offset?: number;
-}) {
-  return unwrap<GeneratedResource[]>(client.get('/admin/content/exercises', { params }));
+// ── 资源生成 ──
+
+export function generateResource(kpId: string, data: { resource_type?: string; template_id?: string }) {
+  return client.post<ApiResponse<GeneratedResource>>(`/admin/content/knowledge-points/${kpId}/generate-resource`, data).then(unwrap);
 }
 
-export function getKpResources(kpId: string) {
-  return unwrap<GeneratedResource[]>(client.get(`/admin/content/knowledge-points/${kpId}/resources`));
+export function listResources(kpId: string) {
+  return client.get<ApiResponse<GeneratedResource[]>>(`/admin/content/knowledge-points/${kpId}/resources`).then(unwrapList);
+}
+
+// ── 习题 ──
+
+export function generateExercises(data: { knowledge_point_id: string; count?: number; exercise_type?: string }) {
+  return client.post<ApiResponse<unknown>>('/admin/content/exercises/generate', data).then(unwrap);
+}
+
+export function createExercise(data: { knowledge_point_id: string; question: string; exercise_type: string; options?: unknown; answer: string; explanation?: string }) {
+  return client.post<ApiResponse<unknown>>('/admin/content/exercises', data).then(unwrap);
+}
+
+export function listExercises(params: { knowledge_point_id?: string; exercise_type?: string; page?: number; page_size?: number } = {}) {
+  return client.get<ApiResponse<PaginatedData<unknown>>>('/admin/content/exercises', { params }).then(unwrapPaged);
+}
+
+// ── 提示词模板 ──
+
+export function createPromptTemplate(data: { name: string; template: string; scene?: string }) {
+  return client.post<ApiResponse<unknown>>('/admin/content/prompt-templates', data).then(unwrap);
+}
+
+export function listPromptTemplates(params: { scene?: string; page?: number; page_size?: number } = {}) {
+  return client.get<ApiResponse<PaginatedData<unknown>>>('/admin/content/prompt-templates', { params }).then(unwrapPaged);
+}
+
+export function getPromptTemplate(id: string) {
+  return client.get<ApiResponse<unknown>>(`/admin/content/prompt-templates/${id}`).then(unwrap);
+}
+
+export function updatePromptTemplate(id: string, data: Partial<{ name: string; template: string; scene: string }>) {
+  return client.patch<ApiResponse<unknown>>(`/admin/content/prompt-templates/${id}`, data).then(unwrap);
+}
+
+export function deletePromptTemplate(id: string) {
+  return client.delete(`/admin/content/prompt-templates/${id}`);
 }

@@ -1,27 +1,38 @@
-import type { ApiResponse, TokenOut, UserInfo } from '@zhiqu/shared';
-import { client, unwrap } from './client';
+import { client as api } from './client'
+import type {
+  ApiResponse,
+  TokenOut,
+  UserInfo,
+  RegisterRequest,
+} from '@zhiqu/shared'
 
-/** MVP: 后端跳过验证码验证，此函数仅做 UI 兼容 */
-export function sendCode(_phone: string) {
-  return Promise.resolve();
-}
+/* ── Auth（/auth 前缀，不在 /app 下）───────────────── */
 
-/** 手机号登录（MVP 跳过验证码） */
-export function loginByPhone(phone: string, code: string) {
-  return client.post<ApiResponse<TokenOut>>('/user/login', { phone, code }).then(unwrap);
-}
+export const login = (data: { phone: string; code: string }) =>
+  api.post<ApiResponse<TokenOut>>('/auth/login', data)
 
-/** 获取当前用户信息 */
-export function getMe() {
-  return client.get<ApiResponse<UserInfo>>('/user/me').then(unwrap);
-}
+export const register = (data: RegisterRequest) =>
+  api.post<ApiResponse<TokenOut>>('/auth/register', data)
 
-/** 更新当前用户信息 */
-export function updateMe(data: Partial<Pick<UserInfo, 'nickname' | 'avatar_url' | 'grade' | 'school'>>) {
-  return client.patch<ApiResponse<UserInfo>>('/user/me', data).then(unwrap);
-}
+// TODO: 后端暂未实现 /auth/send-code（MVP 跳过验证码）
+export const sendCode = (_phone: string) =>
+  Promise.resolve({ data: { code: 0, data: null, message: 'ok' } } as any)
 
-/** 刷新 token */
-export function refreshToken(refresh_token: string) {
-  return client.post<ApiResponse<{ access_token: string; token_type: string; expires_in: number }>>('/user/refresh', { refresh_token }).then(unwrap);
-}
+export const refreshToken = (refreshToken: string) =>
+  api.post<ApiResponse<TokenOut>>('/auth/refresh', { refresh_token: refreshToken })
+
+/* ── User profile（/app/user 前缀）─────────────────── */
+
+export const getProfile = () =>
+  api.get<ApiResponse<UserInfo>>('/app/user/me')
+
+export const updateProfile = (data: Partial<UserInfo>) =>
+  api.patch<ApiResponse<UserInfo>>('/app/user/me', data)
+
+/* ── Guardian / Children ──────────────────────────── */
+
+export const bindGuardian = (data: { guardian_phone: string }) =>
+  api.post<ApiResponse<null>>('/app/user/guardian-bindings', data)
+
+export const getChildren = () =>
+  api.get<ApiResponse<UserInfo[]>>('/app/user/children')
