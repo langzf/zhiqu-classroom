@@ -119,13 +119,13 @@ const containerStyle: React.CSSProperties = {
   justifyContent: 'center',
   minHeight: '100vh',
   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  padding: 'var(--space-md)',
+  padding: 'var(--spacing-md)',
 };
 
 const cardStyle: React.CSSProperties = {
   background: '#fff',
   borderRadius: 'var(--radius-lg)',
-  padding: '40px var(--space-lg)',
+  padding: '40px var(--spacing-lg)',
   width: '100%',
   maxWidth: 400,
   boxShadow: 'var(--shadow-md)',
@@ -140,7 +140,7 @@ const titleStyle: React.CSSProperties = {
 };
 
 const subtitleStyle: React.CSSProperties = {
-  fontSize: 'var(--text-sm)',
+  fontSize: 'var(--font-sm)',
   color: '#999',
   margin: '8px 0 32px',
 };
@@ -148,33 +148,33 @@ const subtitleStyle: React.CSSProperties = {
 const formStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 'var(--space-md)',
+  gap: 'var(--spacing-md)',
 };
 
 const inputStyle: React.CSSProperties = {
   height: 48,
   borderRadius: 'var(--radius-sm)',
   border: '1px solid #ddd',
-  padding: '0 var(--space-md)',
-  fontSize: 'var(--text-base)',
+  padding: '0 var(--spacing-md)',
+  fontSize: 'var(--font-md)',
   outline: 'none',
   transition: 'border-color .2s',
 };
 
 const codeRowStyle: React.CSSProperties = {
   display: 'flex',
-  gap: 'var(--space-sm)',
+  gap: 'var(--spacing-sm)',
 };
 
 const sendBtnStyle: React.CSSProperties = {
   flexShrink: 0,
   height: 48,
-  padding: '0 var(--space-md)',
+  padding: '0 var(--spacing-md)',
   borderRadius: 'var(--radius-sm)',
   border: '1px solid var(--color-primary)',
   background: 'transparent',
   color: 'var(--color-primary)',
-  fontSize: 'var(--text-sm)',
+  fontSize: 'var(--font-sm)',
   cursor: 'pointer',
   whiteSpace: 'nowrap',
 };
@@ -185,19 +185,19 @@ const loginBtnStyle: React.CSSProperties = {
   border: 'none',
   background: 'var(--color-primary)',
   color: '#fff',
-  fontSize: 'var(--text-base)',
+  fontSize: 'var(--font-md)',
   fontWeight: 600,
   cursor: 'pointer',
 };
 
 const errorStyle: React.CSSProperties = {
   color: '#ef4444',
-  fontSize: 'var(--text-sm)',
+  fontSize: 'var(--font-sm)',
   margin: 0,
 };
 
 const tipStyle: React.CSSProperties = {
-  fontSize: 'var(--text-xs)',
+  fontSize: 'var(--font-xs)',
   color: '#bbb',
   margin: 0,
 };
