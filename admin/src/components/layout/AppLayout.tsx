@@ -10,6 +10,7 @@ import {
   MenuUnfoldOutlined,
   MessageOutlined,
   OrderedListOutlined,
+  SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,6 +24,7 @@ const menuItems = [
   { key: '/tutor', icon: <MessageOutlined />, label: 'AI 导师' },
   { key: '/tasks', icon: <OrderedListOutlined />, label: '学习任务' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+  { key: '/model-config', icon: <SettingOutlined />, label: '模型配置' },
 ];
 
 export default function AppLayout() {

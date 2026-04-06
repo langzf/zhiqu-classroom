@@ -14,6 +14,7 @@ const ConversationList = lazy(() => import('@/pages/tutor/ConversationList'));
 const ChatPage = lazy(() => import('@/pages/tutor/ChatPage'));
 const UserList = lazy(() => import('@/pages/users/UserList'));
 const TaskList = lazy(() => import('@/pages/learning/TaskList'));
+const ModelConfigPage = lazy(() => import('@/pages/model-config/ModelConfigPage'));
 
 const LazyWrapper: React.FC = () => (
   <Suspense
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
               { path: 'dashboard', element: <DashboardPage /> },
               { path: 'textbooks', element: <TextbookList /> },
               { path: 'textbooks/:id', element: <TextbookDetail /> },
+              { path: 'model-config', element: <ModelConfigPage /> },
               { path: 'exercises', element: <ExerciseList /> },
               { path: 'tutor', element: <ConversationList /> },
               { path: 'tutor/:id', element: <ChatPage /> },
