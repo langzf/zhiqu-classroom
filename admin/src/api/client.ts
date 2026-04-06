@@ -2,8 +2,8 @@ import axios from 'axios';
 import type { ApiResponse } from '@zhiqu/shared';
 import { useAuthStore } from '@/stores/authStore';
 
-const client = axios.create({
-  baseURL: '/api/v1',
+export const client = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 60_000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -65,4 +65,15 @@ export async function unwrapPaged<T>(
   }
   const { data: items, meta } = res.data;
   return { items, ...meta };
+}
+
+/** Helper: unwrap an array response (non-paginated) */
+export async function unwrapList<T>(
+  promise: Promise<{ data: { code: number; message: string; data: T[] } }>,
+): Promise<T[]> {
+  const res = await promise;
+  if (res.data.code !== 200 && res.data.code !== 0) {
+    throw new Error(res.data.message || 'Unknown error');
+  }
+  return res.data.data;
 }

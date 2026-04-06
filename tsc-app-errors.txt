@@ -1,0 +1,38 @@
+﻿src/api/content.ts(1,8): error TS2613: Module '"C:/Users/18513/.openclaw/workspace/zhiqu-classroom/app/src/api/client"' has no default export. Did you mean to use 'import { client } from "C:/Users/18513/.openclaw/workspace/zhiqu-classroom/app/src/api/client"' instead?
+src/api/content.ts(2,15): error TS2305: Module '"./client"' has no exported member 'PagedResult'.
+src/pages/ChapterDetailPage.tsx(95,8): error TS2339: Property 'then' does not exist on type 'PaginatedData<KnowledgePoint>'.
+src/pages/ChapterDetailPage.tsx(95,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/pages/ChapterDetailPage.tsx(96,15): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/pages/ChapterDetailPage.tsx(197,8): error TS2339: Property 'then' does not exist on type 'GeneratedResource[]'.
+src/pages/ChatPage.tsx(15,13): error TS2345: Argument of type 'Dispatch<SetStateAction<Conversation[]>>' is not assignable to parameter of type '(value: PaginatedData<Conversation>) => void | PromiseLike<void>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'PaginatedData<Conversation>' is not assignable to type 'SetStateAction<Conversation[]>'.
+src/pages/HomePage.tsx(20,48): error TS2339: Property 'then' does not exist on type 'PaginatedData<Textbook>'.
+src/pages/HomePage.tsx(20,54): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/pages/HomePage.tsx(21,58): error TS2339: Property 'slice' does not exist on type 'PaginatedData<Conversation>'.
+src/pages/HomePage.tsx(22,42): error TS2339: Property 'filter' does not exist on type 'PaginatedData<LearningTask>'.
+src/pages/HomePage.tsx(22,50): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/pages/HomePage.tsx(103,23): error TS2339: Property 'description' does not exist on type 'LearningTask'.
+src/pages/StudyPage.tsx(70,29): error TS2339: Property 'total_pages' does not exist on type 'PaginatedData<Textbook>'.
+src/pages/StudyPage.tsx(125,31): error TS2339: Property 'filter' does not exist on type 'PaginatedData<LearningTask>'.
+src/pages/StudyPage.tsx(125,39): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/pages/StudyPage.tsx(144,19): error TS2339: Property 'description' does not exist on type 'LearningTask'.
+src/router/index.tsx(2,10): error TS2305: Module '"@/layouts/MainLayout"' has no exported member 'MainLayout'.
+src/router/index.tsx(3,10): error TS2305: Module '"@/components/AuthGuard"' has no exported member 'AuthGuard'.
+../packages/shared/src/index.ts(12,3): error TS2724: '"./constants/enums"' has no exported member named 'SUBJECTS'. Did you mean 'Subject'?
+../packages/shared/src/index.ts(12,13): error TS2305: Module '"./constants/enums"' has no exported member 'GRADES'.
+../packages/shared/src/index.ts(12,21): error TS2305: Module '"./constants/enums"' has no exported member 'ROLES'.
+../packages/shared/src/index.ts(12,28): error TS2305: Module '"./constants/enums"' has no exported member 'PARSE_STATUSES'.
+../packages/shared/src/index.ts(12,44): error TS2305: Module '"./constants/enums"' has no exported member 'TASK_STATUSES'.
+../packages/shared/src/index.ts(12,59): error TS2305: Module '"./constants/enums"' has no exported member 'EXERCISE_TYPES'.
+../packages/shared/src/index.ts(13,3): error TS2724: '"./constants/enums"' has no exported member named 'SUBJECT_LABELS'. Did you mean 'SubjectLabels'?
+../packages/shared/src/index.ts(13,19): error TS2305: Module '"./constants/enums"' has no exported member 'GRADE_LABELS'.
+../packages/shared/src/index.ts(13,33): error TS2305: Module '"./constants/enums"' has no exported member 'PARSE_STATUS_LABELS'.
+../packages/shared/src/index.ts(13,54): error TS2305: Module '"./constants/enums"' has no exported member 'TASK_STATUS_LABELS'.
+../packages/shared/src/index.ts(14,3): error TS2305: Module '"./constants/enums"' has no exported member 'EXERCISE_TYPE_LABELS'.
+../packages/shared/src/index.ts(14,25): error TS2305: Module '"./constants/enums"' has no exported member 'ROLE_LABELS'.
+../packages/shared/src/index.ts(16,34): error TS2305: Module '"./constants/enums"' has no exported member 'Grade'.
+../packages/shared/src/index.ts(16,41): error TS2305: Module '"./constants/enums"' has no exported member 'ParseStatus'.
+../packages/shared/src/index.ts(16,54): error TS2305: Module '"./constants/enums"' has no exported member 'TaskStatus'.
+../packages/shared/src/index.ts(16,66): error TS2305: Module '"./constants/enums"' has no exported member 'ExerciseType'.
+../packages/shared/src/types/content.ts(1,15): error TS2305: Module '"../constants/enums"' has no exported member 'ParseStatus'.

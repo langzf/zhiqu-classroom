@@ -51,7 +51,7 @@ export default function TextbookDetail() {
     try {
       const [tb, chs] = await Promise.all([getTextbook(id), getChapters(id)]);
       setTextbook(tb);
-      setChapters(chs);
+      setChapters(chs.items);
     } catch {
       message.error('加载教材详情失败');
     } finally {

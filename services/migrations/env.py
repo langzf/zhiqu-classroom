@@ -19,12 +19,8 @@ from config import Settings  # noqa: E402
 settings = Settings()
 
 # ── import ALL models so metadata.tables is populated ──
-from shared.base_model import Base  # noqa: E402
-import content_engine.models  # noqa: E402, F401
-import ai_tutor.models  # noqa: E402, F401
-import user_profile.models  # noqa: E402, F401
-import learning_orchestrator.models  # noqa: E402, F401
-# learning_core not registered in main.py, skip for now
+# 导入 models 包会触发所有 ORM 模型注册到 Base.metadata
+from infrastructure.persistence.models import Base  # noqa: E402
 
 # ── Alembic Config ──
 config = context.config
@@ -37,16 +33,6 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# schemas we manage
-INCLUDE_SCHEMAS = {"content", "tutor", "users", "learning", "public"}
-
-
-def include_name(name, type_, parent_names):
-    """Only include tables/schemas we own."""
-    if type_ == "schema":
-        return name in INCLUDE_SCHEMAS
-    return True
-
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -55,8 +41,6 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        include_schemas=True,
-        include_name=include_name,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -66,8 +50,6 @@ def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        include_schemas=True,
-        include_name=include_name,
     )
     with context.begin_transaction():
         context.run_migrations()

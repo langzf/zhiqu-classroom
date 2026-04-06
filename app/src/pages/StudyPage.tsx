@@ -122,7 +122,7 @@ function TaskList({ onSelect }: { onSelect: (id: string) => void }) {
 
   useEffect(() => {
     listTasks()
-      .then((r) => setTasks(r.items.filter((t: LearningTask) => t.status === 'published')))
+      .then((r) => setTasks(r.items.filter((t: LearningTask) => t.status !== 'completed' && t.status !== 'expired')))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

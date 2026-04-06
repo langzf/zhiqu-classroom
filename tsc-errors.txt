@@ -1,0 +1,30 @@
+﻿src/api/content.ts(2,44): error TS6133: 'PagedResult' is declared but its value is never read.
+src/api/user.ts(1,26): error TS6133: 'unwrapPaged' is declared but its value is never read.
+src/api/user.ts(1,44): error TS6133: 'PagedResult' is declared but its value is never read.
+src/pages/dashboard/DashboardPage.tsx(36,27): error TS2353: Object literal may only specify known properties, and 'limit' does not exist in type '{ subject?: string | undefined; grade?: string | undefined; status?: string | undefined; page?: number | undefined; page_size?: number | undefined; }'.
+src/pages/dashboard/DashboardPage.tsx(38,31): error TS2353: Object literal may only specify known properties, and 'limit' does not exist in type '{ scene?: string | undefined; page?: number | undefined; page_size?: number | undefined; }'.
+src/pages/dashboard/DashboardPage.tsx(39,23): error TS2353: Object literal may only specify known properties, and 'limit' does not exist in type '{ status?: string | undefined; subject?: string | undefined; task_type?: string | undefined; page?: number | undefined; page_size?: number | undefined; }'.
+src/pages/dashboard/DashboardPage.tsx(44,57): error TS2339: Property 'total' does not exist on type 'UserInfo[]'.
+src/pages/exercises/ExerciseList.tsx(104,41): error TS2339: Property 'content' does not exist on type 'GeneratedResource'.
+src/pages/exercises/ExerciseList.tsx(104,82): error TS2339: Property 'content' does not exist on type 'GeneratedResource'.
+src/pages/exercises/ExerciseList.tsx(104,100): error TS2339: Property 'content' does not exist on type 'GeneratedResource'.
+src/pages/exercises/ExerciseList.tsx(150,31): error TS2339: Property 'content' does not exist on type 'GeneratedResource'.
+src/pages/exercises/ExerciseList.tsx(151,39): error TS2339: Property 'content' does not exist on type 'GeneratedResource'.
+src/pages/exercises/ExerciseList.tsx(152,28): error TS2339: Property 'content' does not exist on type 'GeneratedResource'.
+src/pages/exercises/ExerciseList.tsx(262,30): error TS2339: Property 'name' does not exist on type 'KnowledgePoint'.
+src/pages/exercises/ExerciseList.tsx(262,42): error TS2339: Property 'subject' does not exist on type 'KnowledgePoint'.
+src/pages/learning/TaskList.tsx(39,60): error TS2353: Object literal may only specify known properties, and 'limit' does not exist in type '{ status?: string | undefined; subject?: string | undefined; task_type?: string | undefined; page?: number | undefined; page_size?: number | undefined; }'.
+src/pages/learning/TaskList.tsx(40,16): error TS2345: Argument of type 'PagedResult<LearningTask>' is not assignable to parameter of type 'SetStateAction<LearningTask[]>'.
+src/pages/login/LoginPage.tsx(5,10): error TS2305: Module '"@/api/user"' has no exported member 'loginByPhone'.
+src/pages/login/LoginPage.tsx(5,24): error TS2305: Module '"@/api/user"' has no exported member 'sendCode'.
+src/pages/textbooks/TextbookDetail.tsx(5,23): error TS2724: '"@/api/content"' has no exported member named 'getChapterTree'. Did you mean 'getChapters'?
+src/pages/textbooks/TextbookDetail.tsx(5,39): error TS2724: '"@/api/content"' has no exported member named 'getKnowledgePoints'. Did you mean 'listKnowledgePoints'?
+src/pages/textbooks/TextbookDetail.tsx(11,9): error TS6133: 'Title' is declared but its value is never read.
+src/pages/textbooks/TextbookList.tsx(50,28): error TS2345: Argument of type '{ title: string; subject: string; grade_range?: string | undefined; }' is not assignable to parameter of type '{ title: string; subject: string; grade: string; publisher?: string | undefined; }'.
+  Property 'grade' is missing in type '{ title: string; subject: string; grade_range?: string | undefined; }' but required in type '{ title: string; subject: string; grade: string; publisher?: string | undefined; }'.
+src/pages/textbooks/TextbookList.tsx(63,34): error TS2554: Expected 1 arguments, but got 3.
+src/pages/users/UserList.tsx(8,15): error TS2305: Module '"@zhiqu/shared"' has no exported member 'User'.
+src/pages/users/UserList.tsx(9,10): error TS2305: Module '"@zhiqu/shared"' has no exported member 'ROLE_LABELS'.
+src/pages/users/UserList.tsx(32,9): error TS2353: Object literal may only specify known properties, and 'page' does not exist in type '{ role?: string | undefined; is_active?: boolean | undefined; keyword?: string | undefined; limit?: number | undefined; offset?: number | undefined; }'.
+src/pages/users/UserList.tsx(42,23): error TS2339: Property 'items' does not exist on type 'never'.
+src/pages/users/UserList.tsx(43,23): error TS2339: Property 'total' does not exist on type 'never'.

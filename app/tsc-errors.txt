@@ -1,0 +1,14 @@
+﻿src/pages/ChatPage.tsx(63,25): error TS2339: Property 'scene' does not exist on type 'Conversation'.
+src/pages/ChatPage.tsx(64,25): error TS2339: Property 'scene' does not exist on type 'Conversation'.
+src/pages/ChatPage.tsx(65,25): error TS2339: Property 'scene' does not exist on type 'Conversation'.
+src/pages/ChatPage.tsx(65,67): error TS2339: Property 'scene' does not exist on type 'Conversation'.
+src/pages/HomePage.tsx(83,38): error TS2339: Property 'grade' does not exist on type 'Textbook'.
+src/pages/HomePage.tsx(122,23): error TS2339: Property 'scene' does not exist on type 'Conversation'.
+src/pages/LoginPage.tsx(54,9): error TS2322: Type '"student" | "teacher" | "parent" | "admin"' is not assignable to type '"student" | "teacher" | "admin" | "guardian"'.
+  Type '"parent"' is not assignable to type '"student" | "teacher" | "admin" | "guardian"'.
+src/pages/StudyPage.tsx(94,36): error TS2339: Property 'grade' does not exist on type 'Textbook'.
+src/pages/StudyPage.tsx(94,49): error TS2339: Property 'publisher' does not exist on type 'Textbook'.
+src/router/index.tsx(28,24): error TS2307: Cannot find module '@/pages/TextbookDetailPage' or its corresponding type declarations.
+src/router/index.tsx(32,24): error TS2307: Cannot find module '@/pages/ChapterDetailPage' or its corresponding type declarations.
+src/router/index.tsx(37,24): error TS2307: Cannot find module '@/pages/ConversationPage' or its corresponding type declarations.
+src/router/index.tsx(42,24): error TS2307: Cannot find module '@/pages/TaskDetailPage' or its corresponding type declarations.

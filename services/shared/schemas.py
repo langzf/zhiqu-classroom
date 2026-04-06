@@ -1,8 +1,15 @@
-"""统一响应格式 & 通用 Schema"""
+"""
+共享 Pydantic Schemas & 统一响应格式
+───────────────────────────────────
+ApiResponse / PagedResponse / OrmBase / IdTimestampSchema
+以及工厂函数 ok() / fail() / paged()
+"""
+
+from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
 from typing import Any, Generic, Optional, TypeVar
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -11,15 +18,16 @@ T = TypeVar("T")
 
 # ── 统一响应 ──────────────────────────────────────────
 
+
 class ApiResponse(BaseModel, Generic[T]):
-    """统一 API 响应包装"""
+    """统一 JSON 响应包装"""
     code: int = 0
     message: str = "ok"
     data: Optional[T] = None
-    request_id: Optional[str] = None
 
 
 class PageMeta(BaseModel):
+    """分页元信息"""
     page: int
     page_size: int
     total: int
@@ -30,26 +38,35 @@ class PagedResponse(BaseModel, Generic[T]):
     """分页响应"""
     code: int = 0
     message: str = "ok"
-    data: Optional[list[T]] = None
-    meta: Optional[PageMeta] = None
-    request_id: Optional[str] = None
+    data: list[T] = []
+    meta: PageMeta
 
 
 # ── 工厂函数 ──────────────────────────────────────────
 
+
 def ok(data: Any = None, message: str = "ok") -> dict:
+    """成功响应"""
     return {"code": 0, "message": message, "data": data}
 
 
-def fail(code: int = -1, message: str = "error", data: Any = None) -> dict:
+def fail(message: str = "error", code: int = -1, data: Any = None) -> dict:
+    """失败响应"""
     return {"code": code, "message": message, "data": data}
 
 
-def paged(items: list, total: int, page: int, page_size: int) -> dict:
+def paged(
+    items: list,
+    total: int,
+    page: int,
+    page_size: int,
+    message: str = "ok",
+) -> dict:
+    """分页响应"""
     total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
     return {
         "code": 0,
-        "message": "ok",
+        "message": message,
         "data": items,
         "meta": {
             "page": page,
@@ -60,15 +77,16 @@ def paged(items: list, total: int, page: int, page_size: int) -> dict:
     }
 
 
-# ── 通用 Schema ──────────────────────────────────────
+# ── ORM 基础 Schema ──────────────────────────────────
+
 
 class OrmBase(BaseModel):
-    """ORM 兼容基类"""
+    """启用 from_attributes 的 Pydantic 基类"""
     model_config = ConfigDict(from_attributes=True)
 
 
 class IdTimestampSchema(OrmBase):
-    """带 id + 时间戳的基础响应"""
-    id: UUID  # UUID as string
+    """带 id + 时间戳的通用基类"""
+    id: UUID
     created_at: datetime
     updated_at: datetime

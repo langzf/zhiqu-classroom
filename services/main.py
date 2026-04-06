@@ -27,20 +27,21 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用启动 / 关闭钩子"""
-    configure_logging(debug=settings.debug)
+    from pathlib import Path
+    log_dir = str(Path(__file__).resolve().parent.parent / "logs" / "backend")
+    configure_logging(debug=settings.debug, log_dir=log_dir)
 
     # ── 初始化 Redis ──
     from redis.asyncio import Redis as AsyncRedis
     redis = AsyncRedis.from_url(settings.redis_url, decode_responses=True)
-    from user_profile.router import set_redis
-    set_redis(redis)
+    app.state.redis = redis
 
     # ── 初始化 MinIO ──
-    from shared.minio_client import init_minio
+    from infrastructure.external.minio_client import init_minio
     init_minio(settings)
 
     # ── 初始化 LLM Client ──
-    from shared.llm_client import init_llm_client
+    from infrastructure.external.llm_client import init_llm_client
     init_llm_client(settings)
 
     logger.info(
@@ -89,27 +90,8 @@ register_exception_handlers(app)
 
 # ── 路由注册 ──────────────────────────────────────────
 
-# 用户认证（公共，无 admin/student 前缀区分）
-from user_profile.router import router as user_router          # noqa: E402
-app.include_router(user_router)
-
-# Admin 路由 → /api/v1/admin/{service}
-from content_engine.router_admin import router as content_admin      # noqa: E402
-from ai_tutor.router_admin import router as tutor_admin              # noqa: E402
-from learning_orchestrator.router_admin import router as learning_admin  # noqa: E402
-
-app.include_router(content_admin, prefix="/api/v1/admin")
-app.include_router(tutor_admin, prefix="/api/v1/admin")
-app.include_router(learning_admin, prefix="/api/v1/admin")
-
-# Student 路由 → /api/v1/{service}
-from content_engine.router_student import router as content_student      # noqa: E402
-from ai_tutor.router_student import router as tutor_student              # noqa: E402
-from learning_orchestrator.router_student import router as learning_student  # noqa: E402
-
-app.include_router(content_student, prefix="/api/v1")
-app.include_router(tutor_student, prefix="/api/v1")
-app.include_router(learning_student, prefix="/api/v1")
+from interfaces.api import register_routers  # noqa: E402
+register_routers(app)
 
 
 # ── 健康检查 ──────────────────────────────────────────

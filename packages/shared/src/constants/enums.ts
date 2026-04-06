@@ -43,13 +43,23 @@ export const PARSE_STATUS_LABELS: Record<ParseStatus, string> = {
   failed: '解析失败',
 };
 
-/** 任务状态 */
+/** 任务状态（管理员侧，Task 编排）*/
 export type TaskStatus = 'draft' | 'published' | 'archived';
 export const TASK_STATUSES: TaskStatus[] = ['draft', 'published', 'archived'];
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   draft: '草稿',
   published: '已发布',
   archived: '已归档',
+};
+
+/** 学习任务状态（学生侧，LearningTask）*/
+export type LearningTaskStatus = 'pending' | 'in_progress' | 'completed' | 'expired';
+export const LEARNING_TASK_STATUSES: LearningTaskStatus[] = ['pending', 'in_progress', 'completed', 'expired'];
+export const LEARNING_TASK_STATUS_LABELS: Record<LearningTaskStatus, string> = {
+  pending: '待完成',
+  in_progress: '进行中',
+  completed: '已完成',
+  expired: '已过期',
 };
 
 /** 练习题类型 */

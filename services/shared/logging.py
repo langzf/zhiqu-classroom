@@ -130,14 +130,19 @@ def inject_context_vars(
 # 3. structlog 配置
 # ────────────────────────────────────────────────────
 
-def configure_logging(*, debug: bool = False) -> None:
+def configure_logging(*, debug: bool = False, log_dir: str | None = None) -> None:
     """
     初始化 structlog。应用启动时调用一次。
 
     Args:
         debug: True → DEBUG 级别 + ConsoleRenderer（开发友好）
                False → INFO 级别 + JSONRenderer（生产 / 采集）
+        log_dir: 日志文件目录。设置后同时输出到文件（JSON 格式，按日期轮转）。
     """
+    import logging
+    import logging.handlers
+    from pathlib import Path
+
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         inject_context_vars,
@@ -158,6 +163,26 @@ def configure_logging(*, debug: bool = False) -> None:
         # 生产模式：JSON 输出 → stdout → Promtail → Loki
         shared_processors.append(structlog.processors.JSONRenderer())
         min_level = 20  # INFO
+
+    # ── 文件日志（JSON，按日期轮转，保留 30 天）──
+    if log_dir:
+        log_path = Path(log_dir)
+        log_path.mkdir(parents=True, exist_ok=True)
+
+        file_handler = logging.handlers.TimedRotatingFileHandler(
+            filename=log_path / "backend.log",
+            when="midnight",
+            interval=1,
+            backupCount=30,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(logging.DEBUG if debug else logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
+
+        # stdlib root logger → 文件
+        root_logger = logging.getLogger()
+        root_logger.addHandler(file_handler)
+        root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
     structlog.configure(
         processors=shared_processors,

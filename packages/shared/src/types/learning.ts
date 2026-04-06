@@ -1,12 +1,26 @@
-/** 学习任务类型 */
-export type TaskType = 'practice' | 'review' | 'preview' | 'test' | 'custom';
+/**
+ * 管理员任务类型（TaskCreate / TaskUpdate）
+ * 对应后端 TaskCreate.task_type: homework|review|practice|exploration
+ */
+export type TaskType = 'homework' | 'review' | 'practice' | 'exploration';
 
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
-  practice: '练习',
+  homework: '作业',
   review: '复习',
-  preview: '预习',
-  test: '测验',
-  custom: '自定义',
+  practice: '练习',
+  exploration: '探索',
+};
+
+/**
+ * 学习核心任务类型（LearningTask，学生端）
+ * 对应后端 LearningTaskCreate.task_type: exercise|reading|review
+ */
+export type LearningTaskType = 'exercise' | 'reading' | 'review';
+
+export const LEARNING_TASK_TYPE_LABELS: Record<LearningTaskType, string> = {
+  exercise: '练习',
+  reading: '阅读',
+  review: '复习',
 };
 
 /** 任务项状态 */
@@ -19,12 +33,12 @@ export const TASK_ITEM_STATUS_LABELS: Record<TaskItemStatus, string> = {
   skipped: '已跳过',
 };
 
-/** 学习任务 (后端 TaskOut) */
+/** 学习任务 (后端 LearningTaskOut，学生端) */
 export interface LearningTask {
   id: string;
   student_id: string;
   title: string;
-  task_type: TaskType;
+  task_type: LearningTaskType;
   status: string;
   config_json: Record<string, unknown> | null;
   progress_pct: number;

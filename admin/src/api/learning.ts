@@ -1,129 +1,48 @@
-import client, { unwrap, unwrapPaged, type PagedResult } from './client';
+import api from './client'
+import type { ApiResponse, PaginatedData, LearningTask, TaskItem } from '@zhiqu/shared'
 
-// ── Types matching backend schemas ──
+/* ── Tasks ────────────────────────────────────────── */
 
-export interface TaskItem {
-  id: string;
-  task_id: string;
-  item_type: string;
-  resource_id: string | null;
-  knowledge_point_id: string | null;
-  title: string;
-  config: Record<string, unknown> | null;
-  sort_order: number;
+export interface TaskListParams {
+  page?: number
+  page_size?: number
+  status?: string
+  task_type?: string
 }
 
-export interface LearningTask {
-  id: string;
-  title: string;
-  description: string | null;
-  task_type: string;
-  status: string;
-  created_by: string;
-  subject: string | null;
-  grade_range: string | null;
-  publish_at: string | null;
-  deadline: string | null;
-  config: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
-}
+export const listTasks = (params?: TaskListParams) =>
+  api.get<ApiResponse<PaginatedData<LearningTask>>>('/admin/learning/tasks', { params })
 
-export interface TaskDetail extends LearningTask {
-  items: TaskItem[];
-}
+export const getTask = (taskId: string) =>
+  api.get<ApiResponse<LearningTask>>(`/admin/learning/tasks/${taskId}`)
 
-export interface TaskProgress {
-  id: string;
-  task_id: string;
-  student_id: string;
-  status: string;
-  score: number | null;
-  started_at: string | null;
-  completed_at: string | null;
-  item_progress: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
-}
+export const createTask = (data: Partial<LearningTask>) =>
+  api.post<ApiResponse<LearningTask>>('/admin/learning/tasks', data)
 
-// ── Admin: Task CRUD ──
+export const updateTask = (taskId: string, data: Partial<LearningTask>) =>
+  api.patch<ApiResponse<LearningTask>>(`/admin/learning/tasks/${taskId}`, data)
 
-export function createTask(data: {
-  title: string;
-  description?: string;
-  task_type?: string;
-  subject?: string;
-  grade_range?: string;
-  publish_at?: string;
-  deadline?: string;
-  config?: Record<string, unknown>;
-  items?: Array<{
-    item_type: string;
-    title: string;
-    resource_id?: string;
-    knowledge_point_id?: string;
-    config?: Record<string, unknown>;
-    sort_order?: number;
-  }>;
-}) {
-  return unwrap<TaskDetail>(client.post('/admin/learning/tasks', data));
-}
+export const deleteTask = (taskId: string) =>
+  api.delete<ApiResponse<null>>(`/admin/learning/tasks/${taskId}`)
 
-export function listTasks(params?: {
-  status?: string;
-  subject?: string;
-  task_type?: string;
-  page?: number;
-  page_size?: number;
-}): Promise<PagedResult<LearningTask>> {
-  return unwrapPaged<LearningTask>(client.get('/admin/learning/tasks', { params }));
-}
+export const publishTask = (taskId: string) =>
+  api.post<ApiResponse<LearningTask>>(`/admin/learning/tasks/${taskId}/publish`)
 
-export function getTask(taskId: string) {
-  return unwrap<TaskDetail>(client.get(`/admin/learning/tasks/${taskId}`));
-}
+/* ── Task Items ───────────────────────────────────── */
 
-export function updateTask(taskId: string, data: Partial<{
-  title: string;
-  description: string;
-  task_type: string;
-  subject: string;
-  grade_range: string;
-  publish_at: string;
-  deadline: string;
-  config: Record<string, unknown>;
-  status: string;
-}>) {
-  return unwrap<TaskDetail>(client.patch(`/admin/learning/tasks/${taskId}`, data));
-}
+export const listTaskItems = (taskId: string) =>
+  api.get<ApiResponse<TaskItem[]>>(`/admin/learning/tasks/${taskId}/items`)
 
-export function publishTask(taskId: string) {
-  return unwrap<LearningTask>(client.post(`/admin/learning/tasks/${taskId}/publish`));
-}
+export const addTaskItem = (taskId: string, data: Partial<TaskItem>) =>
+  api.post<ApiResponse<TaskItem>>(`/admin/learning/tasks/${taskId}/items`, data)
 
-export function archiveTask(taskId: string) {
-  return unwrap<LearningTask>(client.post(`/admin/learning/tasks/${taskId}/archive`));
-}
+export const updateTaskItem = (taskId: string, itemId: string, data: Partial<TaskItem>) =>
+  api.patch<ApiResponse<TaskItem>>(`/admin/learning/tasks/${taskId}/items/${itemId}`, data)
 
-export function deleteTask(taskId: string) {
-  return unwrap<{ task_id: string; deleted: boolean }>(client.delete(`/admin/learning/tasks/${taskId}`));
-}
+export const deleteTaskItem = (taskId: string, itemId: string) =>
+  api.delete<ApiResponse<null>>(`/admin/learning/tasks/${taskId}/items/${itemId}`)
 
-// ── Admin: Task Items ──
+/* ── Progress ─────────────────────────────────────── */
 
-export function addTaskItem(taskId: string, data: {
-  item_type: string;
-  title: string;
-  resource_id?: string;
-  knowledge_point_id?: string;
-  config?: Record<string, unknown>;
-  sort_order?: number;
-}) {
-  return unwrap<TaskItem>(client.post(`/admin/learning/tasks/${taskId}/items`, data));
-}
-
-export function removeTaskItem(taskId: string, itemId: string) {
-  return unwrap<{ item_id: string; deleted: boolean }>(
-    client.delete(`/admin/learning/tasks/${taskId}/items/${itemId}`),
-  );
-}
+export const getTaskProgress = (taskId: string) =>
+  api.get<ApiResponse<any>>(`/admin/learning/tasks/${taskId}/progress`)

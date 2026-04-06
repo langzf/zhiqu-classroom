@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listTextbooks } from '@/api/content';
-import { listTasks } from '@/api/learning';
+import { listMyTasks } from '@/api/learning';
 import type { Textbook, LearningTask } from '@zhiqu/shared';
 import './HomePage.css';
 
@@ -14,7 +14,7 @@ export function Component() {
   useEffect(() => {
     Promise.all([
       listTextbooks({ page: 1, page_size: 4 }),
-      listTasks({ page: 1, page_size: 5 }),
+      listMyTasks({ page: 1, page_size: 5 }),
     ])
       .then(([tbData, taskData]) => {
         setTextbooks(tbData.items);

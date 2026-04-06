@@ -3,20 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getTask, listTaskItems } from '@/api/learning';
 import { Loading, Empty } from '@/components/Feedback';
 import type { LearningTask, TaskItem } from '@zhiqu/shared';
-import { TASK_TYPE_LABELS, TASK_ITEM_STATUS_LABELS } from '@zhiqu/shared';
+import { LEARNING_TASK_TYPE_LABELS, TASK_ITEM_STATUS_LABELS } from '@zhiqu/shared';
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: '草稿',
-  active: '进行中',
+  pending: '待完成',
+  in_progress: '进行中',
   completed: '已完成',
-  archived: '已归档',
+  expired: '已过期',
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: '#999',
-  active: 'var(--color-primary)',
+  pending: '#999',
+  in_progress: 'var(--color-primary)',
   completed: '#10B981',
-  archived: '#6B7280',
+  expired: '#6B7280',
 };
 
 const ITEM_STATUS_COLORS: Record<string, string> = {
@@ -83,7 +83,7 @@ export function Component() {
               </h2>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ ...tagStyle, background: '#EEF2FF', color: 'var(--color-primary)' }}>
-                  {TASK_TYPE_LABELS[task.task_type] ?? task.task_type}
+                  {LEARNING_TASK_TYPE_LABELS[task.task_type as keyof typeof LEARNING_TASK_TYPE_LABELS] ?? task.task_type}
                 </span>
                 <span style={{ ...tagStyle, background: '#F3F4F6', color: STATUS_COLORS[task.status] ?? '#999' }}>
                   {STATUS_LABELS[task.status] ?? task.status}

@@ -1,4 +1,4 @@
-import { client as api } from './client'
+import { client as api, unwrap } from './client'
 import type {
   ApiResponse,
   TokenOut,
@@ -13,6 +13,10 @@ export const login = (data: { phone: string; code: string }) =>
 
 export const register = (data: RegisterRequest) =>
   api.post<ApiResponse<TokenOut>>('/auth/register', data)
+
+/** LoginPage 使用：接收 (phone, code) 两个参数，返回解包后的 TokenOut */
+export const loginByPhone = async (phone: string, code: string): Promise<TokenOut> =>
+  unwrap(await api.post<ApiResponse<TokenOut>>('/auth/login', { phone, code }))
 
 // TODO: 后端暂未实现 /auth/send-code（MVP 跳过验证码）
 export const sendCode = (_phone: string) =>

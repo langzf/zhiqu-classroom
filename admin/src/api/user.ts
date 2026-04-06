@@ -1,57 +1,39 @@
-import type { UserInfo, TokenOut, RegisterRequest } from '@zhiqu/shared';
-import client, { unwrap, unwrapPaged, type PagedResult } from './client';
+import type { ApiResponse, PaginatedData } from '@zhiqu/shared';
+import type { User, UserInfo } from '@zhiqu/shared';
+import { client, unwrap, unwrapPaged } from './client';
 
-// ── Auth ────────────────────────────────────────────────
-
-export function register(data: RegisterRequest) {
-  return unwrap<TokenOut>(client.post('/user/register', data));
+/** ── 认证 ── */
+export async function loginByPhone(phone: string, code?: string) {
+  const tokens = await unwrap(client.post<ApiResponse<{ access_token: string; refresh_token?: string; token_type: string; expires_in: number }>>('/auth/login/admin', { phone, code }));
+  // 登录后用新 token 拉取用户信息
+  const user = await unwrap(client.get<ApiResponse<UserInfo>>('/app/user/me', {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  }));
+  return { ...tokens, user };
 }
 
-export function login(phone: string) {
-  // admin 后台使用专用端点，仅允许 admin 角色登录
-  return unwrap<TokenOut>(client.post('/user/login/admin', { phone }));
+/** 发送验证码（MVP 阶段暂为空实现） */
+export async function sendCode(phone: string) {
+  // MVP: 后端暂未实现短信发送，直接 resolve
+  return Promise.resolve();
 }
 
-/** Alias used by LoginPage — MVP backend ignores code */
-export function loginByPhone(phone: string, _code?: string) {
-  return login(phone);
+/** ── 当前用户 ── */
+export function getMe() {
+  return client.get<ApiResponse<UserInfo>>('/app/user/me').then(unwrap);
 }
 
-/** MVP: no-op — backend uses mock SMS provider */
-export async function sendCode(_phone: string): Promise<void> {
-  // no-op for MVP; backend mock always accepts any code
+/** ── 管理：用户列表 ── */
+export function listUsers(params: { role?: string; keyword?: string; page?: number; page_size?: number } = {}) {
+  return client.get<ApiResponse<PaginatedData<User>>>('/admin/users', { params }).then(unwrapPaged);
 }
 
-export function refreshToken() {
-  return unwrap<TokenOut>(client.post('/user/refresh'));
-}
-
-// ── Profile ─────────────────────────────────────────────
-
-export function getProfile() {
-  return unwrap<UserInfo>(client.get('/user/me'));
-}
-
-export function updateProfile(data: Partial<UserInfo>) {
-  return unwrap<UserInfo>(client.patch('/user/me', data));
-}
-
-// ── Admin ───────────────────────────────────────────────
-
-export function listUsers(params?: {
-  role?: string;
-  is_active?: boolean;
-  keyword?: string;
-  page?: number;
-  page_size?: number;
-}): Promise<PagedResult<UserInfo>> {
-  return unwrapPaged<UserInfo>(client.get('/user/users', { params }));
-}
-
+/** ── 管理：用户详情 ── */
 export function getUser(userId: string) {
-  return unwrap<UserInfo>(client.get(`/user/users/${userId}`));
+  return client.get<ApiResponse<User>>(`/admin/users/${userId}`).then(unwrap);
 }
 
-export function updateUser(userId: string, data: Partial<UserInfo>) {
-  return unwrap<UserInfo>(client.patch(`/user/users/${userId}`, data));
+/** ── 管理：更新用户（含 role, is_active 等） ── */
+export function updateUser(userId: string, data: Partial<{ nickname: string; role: string; is_active: boolean }>) {
+  return client.patch<ApiResponse<User>>(`/admin/users/${userId}`, data).then(unwrap);
 }
