@@ -51,7 +51,7 @@ async def list_providers(
     svc = _svc(db, settings)
     rows, total = await svc.list_providers(page=page, size=size, is_active=is_active)
     items = [ModelProviderOut.model_validate(r).model_dump() for r in rows]
-    return paged(items=items, total=total, page=page, size=size)
+    return paged(items=items, total=total, page=page, page_size=size)
 
 
 @router.get("/providers/{provider_id}", summary="供应商详情")
@@ -138,7 +138,7 @@ async def list_configs(
         page=page, size=size, provider_id=provider_id, is_active=is_active
     )
     items = [ModelConfigOut.model_validate(r).model_dump() for r in rows]
-    return paged(items=items, total=total, page=page, size=size)
+    return paged(items=items, total=total, page=page, page_size=size)
 
 
 @router.get("/configs/{config_id}", summary="模型配置详情")
@@ -209,7 +209,7 @@ async def list_bindings(
     svc = _svc(db, settings)
     rows, total = await svc.list_bindings(page=page, size=size)
     items = [SceneModelBindingOut.model_validate(r).model_dump() for r in rows]
-    return paged(items=items, total=total, page=page, size=size)
+    return paged(items=items, total=total, page=page, page_size=size)
 
 
 @router.post("/bindings", summary="新建场景绑定", status_code=201)

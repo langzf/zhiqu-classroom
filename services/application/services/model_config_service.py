@@ -115,6 +115,7 @@ class ModelConfigService:
         )
         self.db.add(row)
         await self.db.flush()
+        await self.db.refresh(row)
 
         row.api_key_masked = _mask_key(data.api_key)
         log.info("provider.created", provider_id=row.id, name=row.name)
@@ -138,6 +139,7 @@ class ModelConfigService:
             setattr(row, k, v)
 
         await self.db.flush()
+        await self.db.refresh(row)
         if not hasattr(row, "api_key_masked") or not row.api_key_masked:
             row.api_key_masked = _mask_key(
                 decrypt_api_key(row.api_key_enc, self.settings.secret_key)
@@ -250,6 +252,7 @@ class ModelConfigService:
         )
         self.db.add(row)
         await self.db.flush()
+        await self.db.refresh(row)
         log.info("model_config.created", config_id=row.id, model=row.model_name)
         return row
 
@@ -269,6 +272,7 @@ class ModelConfigService:
             setattr(row, k, v)
 
         await self.db.flush()
+        await self.db.refresh(row)
         log.info("model_config.updated", config_id=str(config_id))
         return row
 
@@ -334,6 +338,7 @@ class ModelConfigService:
         )
         self.db.add(row)
         await self.db.flush()
+        await self.db.refresh(row)
         _invalidate_cache(data.scene_key)
         log.info("binding.created", scene_key=data.scene_key)
         return row
@@ -353,6 +358,7 @@ class ModelConfigService:
             setattr(row, k, v)
 
         await self.db.flush()
+        await self.db.refresh(row)
         _invalidate_cache(scene_key)
         log.info("binding.updated", scene_key=scene_key)
         return row

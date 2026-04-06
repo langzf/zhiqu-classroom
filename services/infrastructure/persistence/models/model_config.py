@@ -19,7 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, generate_uuid7
@@ -46,7 +46,7 @@ class ModelProvider(Base):
     __tablename__ = "model_providers"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=generate_uuid7
+        UUID(as_uuid=False), primary_key=True, default=generate_uuid7
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment="显示名称")
     provider_type: Mapped[str] = mapped_column(
@@ -87,10 +87,10 @@ class ModelConfig(Base):
     )
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=generate_uuid7
+        UUID(as_uuid=False), primary_key=True, default=generate_uuid7
     )
     provider_id: Mapped[str] = mapped_column(
-        String(36),
+        UUID(as_uuid=False),
         ForeignKey("model_providers.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -131,7 +131,7 @@ class SceneModelBinding(Base):
     __tablename__ = "scene_model_bindings"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=generate_uuid7
+        UUID(as_uuid=False), primary_key=True, default=generate_uuid7
     )
     scene_key: Mapped[str] = mapped_column(
         String(100), unique=True, nullable=False,
@@ -141,7 +141,7 @@ class SceneModelBinding(Base):
         String(200), nullable=True, comment="场景中文描述"
     )
     model_config_id: Mapped[str] = mapped_column(
-        String(36),
+        UUID(as_uuid=False),
         ForeignKey("model_configs.id", ondelete="RESTRICT"),
         nullable=False,
     )
