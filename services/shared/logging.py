@@ -169,6 +169,15 @@ def configure_logging(*, debug: bool = False, log_dir: str | None = None) -> Non
         log_path = Path(log_dir)
         log_path.mkdir(parents=True, exist_ok=True)
 
+        # 文件 handler 去除 ANSI 颜色转义码
+        import re
+        _ansi_re = re.compile(r"\x1b\[[0-9;]*m")
+
+        class _StripAnsiFormatter(logging.Formatter):
+            def format(self, record: logging.LogRecord) -> str:
+                msg = super().format(record)
+                return _ansi_re.sub("", msg)
+
         file_handler = logging.handlers.TimedRotatingFileHandler(
             filename=log_path / "backend.log",
             when="midnight",
@@ -177,18 +186,27 @@ def configure_logging(*, debug: bool = False, log_dir: str | None = None) -> Non
             encoding="utf-8",
         )
         file_handler.setLevel(logging.DEBUG if debug else logging.INFO)
-        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        file_handler.setFormatter(_StripAnsiFormatter("%(message)s"))
 
-        # stdlib root logger → 文件
+        # root logger 加 file handler（所有 structlog + stdlib 日志都会 propagate 到这里）
         root_logger = logging.getLogger()
         root_logger.addHandler(file_handler)
         root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
+        # root logger 也需要 console handler（structlog stdlib factory 不会自动打印到终端）
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG if debug else logging.INFO)
+        console_handler.setFormatter(logging.Formatter("%(message)s"))
+        root_logger.addHandler(console_handler)
+
+    # 使用 stdlib logger factory 让 structlog 的输出同时走 stdlib（→ 文件 + 终端）
     structlog.configure(
         processors=shared_processors,
         wrapper_class=structlog.make_filtering_bound_logger(min_level),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory()
+        if log_dir
+        else structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,
     )
 

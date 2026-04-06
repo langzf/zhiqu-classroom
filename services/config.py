@@ -50,7 +50,8 @@ class Settings(BaseSettings):
     sms_template_code: str = ""
 
     # ── CORS ──
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # 开发阶段允许所有来源（Cloudflare Tunnel 域名每次变化）
+    cors_origins: list[str] = ["*"]
 
     model_config = {
         "env_file": ".env",
