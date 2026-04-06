@@ -27,6 +27,13 @@ from infrastructure.persistence.models.learning import (
     MasteryRecord,
 )
 
+# ── model config ──
+from infrastructure.persistence.models.model_config import (
+    ModelProvider,
+    ModelConfig,
+    SceneModelBinding,
+)
+
 # ── user ──
 from infrastructure.persistence.models.user import (
     User,
@@ -63,4 +70,8 @@ __all__ = [
     "StudentProfile",
     "UserOAuthBinding",
     "GuardianBinding",
+    # model config
+    "ModelProvider",
+    "ModelConfig",
+    "SceneModelBinding",
 ]

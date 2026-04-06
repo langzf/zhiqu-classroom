@@ -138,14 +138,16 @@ def upgrade() -> None:
         "item_type IN ('exercise','reading','video','quiz')")
 
     # -- study_sessions --
-    _create_check_if_not_exists(
-        'ck_study_sessions_session_type', 'study_sessions',
-        "session_type IN ('free_chat','homework_help','review','quiz','exploration')")
+    # NOTE: study_sessions uses 'activity_type', not 'session_type'; skipped
+    # _create_check_if_not_exists(
+    #     'ck_study_sessions_session_type', 'study_sessions',
+    #     "session_type IN ('free_chat','homework_help','review','quiz','exploration')")
 
 
 def downgrade() -> None:
     # Reverse in order
-    op.drop_constraint('ck_study_sessions_session_type', 'study_sessions', type_='check')
+    # NOTE: session_type constraint was skipped in upgrade; skip here too
+    # op.drop_constraint('ck_study_sessions_session_type', 'study_sessions', type_='check')
     op.drop_constraint('ck_task_items_item_type', 'task_items', type_='check')
 
     op.drop_index('idx_tasks_publish', 'tasks')
