@@ -21,6 +21,12 @@ export function listKnowledgePoints(chapterId: string) {
   return client.get<ApiResponse<KnowledgePoint[]>>(`/app/content/chapters/${chapterId}/knowledge-points`).then(unwrapList);
 }
 
+/** ── 知识点资源 ── */
+// TODO: 后端尚无 /app/content/knowledge-points/{id}/resources 端点，暂返回空数组
+export function listKpResources(kpId: string) {
+  return Promise.resolve([]);
+}
+
 /** ── 搜索知识点 ── */
 export function searchKnowledgePoints(query: string, topK?: number) {
   return client.post<ApiResponse<KnowledgePoint[]>>('/app/content/knowledge-points/search', { query, top_k: topK ?? 5 }).then(unwrapList);

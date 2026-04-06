@@ -49,8 +49,18 @@ export function listMyTasks(params: { status?: string; page?: number; page_size?
   return client.get<ApiResponse<PaginatedData<TaskOut>>>('/app/learning/tasks', { params }).then(unwrapPaged);
 }
 
+export function listTasks(params: { status?: string; page?: number; page_size?: number } = {}) {
+  return listMyTasks(params);
+}
+
 export function getTask(taskId: string) {
   return client.get<ApiResponse<TaskDetail>>(`/app/learning/tasks/${taskId}`).then(unwrap);
+}
+
+// TODO: 后端尚无独立的 task-items 端点；TaskDetail.items 已含子项，此处返回 task.items
+export async function listTaskItems(taskId: string) {
+  const task = await getTask(taskId);
+  return (task as TaskDetail).items ?? [];
 }
 
 export function startTask(taskId: string) {

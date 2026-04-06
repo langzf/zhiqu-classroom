@@ -16,8 +16,24 @@ export function updateTextbook(id: string, data: Partial<{ title: string; subjec
   return client.patch<ApiResponse<Textbook>>(`/admin/content/textbooks/${id}`, data).then(unwrap);
 }
 
+export function getTextbook(id: string) {
+  return client.get<ApiResponse<Textbook>>(`/admin/content/textbooks/${id}`).then(unwrap);
+}
+
 export function deleteTextbook(id: string) {
   return client.delete(`/admin/content/textbooks/${id}`);
+}
+
+export function triggerParse(textbookId: string) {
+  return client.post<ApiResponse<unknown>>(`/admin/content/textbooks/${textbookId}/parse`).then(unwrap);
+}
+
+export function uploadTextbook(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return client.post<ApiResponse<Textbook>>('/admin/content/textbooks/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(unwrap);
 }
 
 // ── 章节 ──
@@ -29,6 +45,8 @@ export function createChapter(textbookId: string, data: { title: string; parent_
 export function listChapters(textbookId: string) {
   return client.get<ApiResponse<Chapter[]>>(`/admin/content/textbooks/${textbookId}/chapters`).then(unwrapList);
 }
+
+export { listChapters as getChapters };
 
 // ── 知识点 ──
 

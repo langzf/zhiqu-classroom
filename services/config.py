@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     minio_bucket: str = "zhiqu"
     minio_secure: bool = False
 
+    # ── Encryption ──
+    secret_key: str = "change-me-in-production"  # 用于 API Key 等敏感数据加密
+
     # ── JWT ──
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"

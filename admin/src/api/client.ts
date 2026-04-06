@@ -57,14 +57,13 @@ export interface PagedResult<T> {
 }
 
 export async function unwrapPaged<T>(
-  promise: Promise<{ data: { code: number; message: string; data: T[]; meta: { page: number; page_size: number; total: number; total_pages: number } } }>,
+  promise: Promise<{ data: { code: number; message: string; data: { items: T[]; total: number; page: number; page_size: number; total_pages: number } } }>,
 ): Promise<PagedResult<T>> {
   const res = await promise;
   if (res.data.code !== 200 && res.data.code !== 0) {
     throw new Error(res.data.message || 'Unknown error');
   }
-  const { data: items, meta } = res.data;
-  return { items, ...meta };
+  return res.data.data as PagedResult<T>;
 }
 
 /** Helper: unwrap an array response (non-paginated) */
