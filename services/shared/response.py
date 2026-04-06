@@ -24,12 +24,20 @@ class PageMeta(BaseModel):
     total_pages: int
 
 
+class PaginatedData(BaseModel, Generic[T]):
+    """分页数据（与前端 PaginatedData<T> 对齐）"""
+    items: list[T] = []
+    total: int = 0
+    page: int = 1
+    page_size: int = 10
+    total_pages: int = 0
+
+
 class PagedResponse(BaseModel, Generic[T]):
     """分页响应"""
     code: int = 0
     message: str = "ok"
-    data: Optional[list[T]] = None
-    meta: Optional[PageMeta] = None
+    data: Optional[PaginatedData[T]] = None
     request_id: Optional[str] = None
 
 
@@ -48,11 +56,11 @@ def paged(items: list, total: int, page: int, page_size: int) -> dict:
     return {
         "code": 0,
         "message": "ok",
-        "data": items,
-        "meta": {
+        "data": {
+            "items": items,
+            "total": total,
             "page": page,
             "page_size": page_size,
-            "total": total,
             "total_pages": total_pages,
         },
     }

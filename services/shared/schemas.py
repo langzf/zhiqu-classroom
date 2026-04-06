@@ -67,11 +67,11 @@ def paged(
     return {
         "code": 0,
         "message": message,
-        "data": items,
-        "meta": {
+        "data": {
+            "items": items,
+            "total": total,
             "page": page,
             "page_size": page_size,
-            "total": total,
             "total_pages": total_pages,
         },
     }
