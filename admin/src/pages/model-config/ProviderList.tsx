@@ -41,7 +41,7 @@ export default function ProviderList() {
       setData(res.items);
       setTotal(res.total);
     } catch {
-      message.error('加载供应商列表失�?);
+      message.error('加载供应商列表失败');
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ export default function ProviderList() {
         message.success('更新成功');
       } else {
         if (!values.api_key) {
-          message.error('新建供应商必须填�?API Key');
+          message.error('新建供应商必须填写 API Key');
           setSubmitting(false);
           return;
         }
@@ -123,7 +123,7 @@ export default function ProviderList() {
   const handleDelete = async (id: string) => {
     try {
       await deleteProvider(id);
-      message.success('已删�?);
+      message.success('已删除');
       fetchData();
     } catch {
       message.error('删除失败');
@@ -158,7 +158,7 @@ export default function ProviderList() {
       render: (v: string) => <Tooltip title={v}><code>{v}</code></Tooltip>,
     },
     {
-      title: '状�?,
+      title: '状态',
       dataIndex: 'is_active',
       width: 80,
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
@@ -174,7 +174,7 @@ export default function ProviderList() {
       render: (_, record) => (
         <Space size="small">
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
-          <Popconfirm title="确认删除此供应商�? onConfirm={() => handleDelete(record.id)} okText="删除" cancelText="取消">
+          <Popconfirm title="确认删除此供应商？" onConfirm={() => handleDelete(record.id)} okText="删除" cancelText="取消">
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
           </Popconfirm>
         </Space>
@@ -185,7 +185,7 @@ export default function ProviderList() {
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建供应�?/Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建供应商</Button>
         <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
       </Space>
 
@@ -204,7 +204,7 @@ export default function ProviderList() {
       />
 
       <Modal
-        title={editing ? '编辑供应�? : '新建供应�?}
+        title={editing ? '编辑供应商' : '新建供应商'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={handleSubmit}
@@ -216,20 +216,20 @@ export default function ProviderList() {
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入供应商名称' }]}>
             <Input placeholder="如：OpenAI 生产环境" />
           </Form.Item>
-          <Form.Item name="provider_type" label="供应商类�? rules={[{ required: true, message: '请选择类型' }]}>
-            <Select options={PROVIDER_TYPES} placeholder="选择供应商类�? />
+          <Form.Item name="provider_type" label="供应商类型" rules={[{ required: true, message: '请选择类型' }]}>
+            <Select options={PROVIDER_TYPES} placeholder="选择供应商类型" />
           </Form.Item>
           <Form.Item name="base_url" label="Base URL">
             <Input placeholder="留空使用默认地址，如 https://api.openai.com/v1" />
           </Form.Item>
           <Form.Item
             name="api_key"
-            label={editing ? 'API Key（留空不修改�? : 'API Key'}
-            rules={editing ? [] : [{ required: true, message: '请输�?API Key' }]}
+            label={editing ? 'API Key（留空不修改）' : 'API Key'}
+            rules={editing ? [] : [{ required: true, message: '请输入 API Key' }]}
           >
             <Input.Password placeholder="sk-..." />
           </Form.Item>
-          <Form.Item name="extra_config" label="扩展配置（JSON�?>
+          <Form.Item name="extra_config" label="扩展配置（JSON）">
             <Input.TextArea rows={3} placeholder='{"org_id": "xxx"}' />
           </Form.Item>
           <Form.Item name="sort_order" label="排序" initialValue={0}>

@@ -15,8 +15,8 @@ import {
 const CAPABILITIES = [
   { value: 'chat', label: '对话 (chat)' },
   { value: 'completion', label: '补全 (completion)' },
-  { value: 'embedding', label: '向量�?(embedding)' },
-  { value: 'vision', label: '多模�?(vision)' },
+  { value: 'embedding', label: '向量化 (embedding)' },
+  { value: 'vision', label: '多模态 (vision)' },
   { value: 'function_calling', label: '工具调用 (function_calling)' },
   { value: 'json_mode', label: 'JSON 模式' },
 ];
@@ -125,7 +125,7 @@ export default function ModelConfigList() {
   const handleDelete = async (id: string) => {
     try {
       await deleteModelConfig(id);
-      message.success('已删�?);
+      message.success('已删除');
       fetchData();
     } catch {
       message.error('删除失败');
@@ -139,18 +139,18 @@ export default function ModelConfigList() {
       width: 200,
     },
     {
-      title: '模型�?,
+      title: '模型名',
       dataIndex: 'model_name',
       width: 200,
       render: (v: string) => <code>{v}</code>,
     },
     {
-      title: '供应�?,
+      title: '供应商',
       dataIndex: 'provider_id',
       width: 160,
       render: (v: string) => {
         const p = providerMap.get(v);
-        return p ? p.name : <span style={{ color: '#999' }}>{v.slice(0, 8)}�?/span>;
+        return p ? p.name : <span style={{ color: '#999' }}>{v.slice(0, 8)}…</span>;
       },
     },
     {
@@ -170,11 +170,11 @@ export default function ModelConfigList() {
       render: (v: Record<string, unknown>) => {
         if (!v || Object.keys(v).length === 0) return <span style={{ color: '#999' }}>-</span>;
         const text = JSON.stringify(v);
-        return <Tooltip title={<pre style={{ margin: 0, maxWidth: 400, whiteSpace: 'pre-wrap' }}>{JSON.stringify(v, null, 2)}</pre>}><code>{text.length > 40 ? text.slice(0, 40) + '�? : text}</code></Tooltip>;
+        return <Tooltip title={<pre style={{ margin: 0, maxWidth: 400, whiteSpace: 'pre-wrap' }}>{JSON.stringify(v, null, 2)}</pre>}><code>{text.length > 40 ? text.slice(0, 40) + '…' : text}</code></Tooltip>;
       },
     },
     {
-      title: '状�?,
+      title: '状态',
       dataIndex: 'is_active',
       width: 80,
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
@@ -205,7 +205,7 @@ export default function ModelConfigList() {
         <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
         <Select
           allowClear
-          placeholder="按供应商筛�?
+          placeholder="按供应商筛选"
           style={{ width: 200 }}
           value={filterProvider}
           onChange={(v) => { setFilterProvider(v); setPage(1); }}
@@ -237,22 +237,22 @@ export default function ModelConfigList() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="provider_id" label="供应�? rules={[{ required: true, message: '请选择供应�? }]}>
+          <Form.Item name="provider_id" label="供应商" rules={[{ required: true, message: '请选择供应商' }]}>
             <Select
-              placeholder="选择供应�?
+              placeholder="选择供应商"
               options={providers.filter((p) => p.is_active).map((p) => ({ value: p.id, label: p.name }))}
             />
           </Form.Item>
-          <Form.Item name="model_name" label="模型名称" rules={[{ required: true, message: '请输入模型名�? }]}>
-            <Input placeholder="�?gpt-4o, claude-3.5-sonnet" />
+          <Form.Item name="model_name" label="模型名称" rules={[{ required: true, message: '请输入模型名称' }]}>
+            <Input placeholder="如 gpt-4o, claude-3.5-sonnet" />
           </Form.Item>
-          <Form.Item name="display_name" label="显示名称" rules={[{ required: true, message: '请输入显示名�? }]}>
-            <Input placeholder="�?GPT-4o（主力）" />
+          <Form.Item name="display_name" label="显示名称" rules={[{ required: true, message: '请输入显示名称' }]}>
+            <Input placeholder="如 GPT-4o（主力）" />
           </Form.Item>
           <Form.Item name="capabilities" label="能力标签">
             <Select mode="multiple" placeholder="选择模型能力" options={CAPABILITIES} />
           </Form.Item>
-          <Form.Item name="default_params" label="默认参数（JSON�?>
+          <Form.Item name="default_params" label="默认参数（JSON）">
             <Input.TextArea rows={3} placeholder='{"temperature": 0.7, "max_tokens": 2048}' />
           </Form.Item>
           <Form.Item name="sort_order" label="排序" initialValue={0}>
