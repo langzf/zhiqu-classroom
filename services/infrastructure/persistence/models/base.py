@@ -17,8 +17,8 @@ from pgvector.sqlalchemy import Vector  # noqa: F401
 
 def generate_uuid7() -> str:
     """生成 UUID v7 字符串（时间有序）"""
-    import uuid_utils  # 延迟导入
-    return str(uuid_utils.uuid7())
+    from uuid6 import uuid7
+    return str(uuid7())
 
 
 class Base(DeclarativeBase):
