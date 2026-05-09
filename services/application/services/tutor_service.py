@@ -216,28 +216,56 @@ class TutorService:
         调用 LLM：构建 system prompt → 加载历史消息 → 调用 LLMClient
 
         流程：
-        1. 根据 scene 构建 system prompt
-        2. 加载最近 N 条历史消息作为上下文
-        3. 调用 LLMClient.chat() 获取回复
+        1. 根据 scene 从模型管理获取配置（fallback 到 __default__）
+        2. 根据 scene 构建 system prompt
+        3. 加载最近 N 条历史消息作为上下文
+        4. 调用 LLMClient.chat() 获取回复
         """
-        from infrastructure.external.llm_client import get_llm_client, ChatMessage
+        from infrastructure.external.llm_client import LLMClient, ChatMessage
+        from application.services.model_config_service import ModelConfigService
+        from config import get_settings
 
-        llm = get_llm_client()
+        # 1. 从数据库模型管理解析当前场景绑定的模型配置
+        #    所有 tutor 对话统一使用 "tutor_chat" 场景绑定
+        TUTOR_SCENE_KEY = "tutor_chat"
+        model_svc = ModelConfigService(self.db, get_settings())
+        try:
+            resolved = await model_svc.resolve_model(TUTOR_SCENE_KEY)
+            llm = LLMClient(
+                api_key=resolved.api_key,
+                base_url=resolved.base_url,
+                default_model=resolved.model_name,
+            )
+            logger.info(
+                "llm_model_resolved",
+                scene_key=TUTOR_SCENE_KEY,
+                conv_scene=conv.scene,
+                provider_type=resolved.provider_type,
+                model=resolved.model_name,
+            )
+        except Exception as e:
+            logger.error(
+                "llm_model_resolve_failed",
+                scene_key=TUTOR_SCENE_KEY,
+                conv_scene=conv.scene,
+                error=str(e),
+            )
+            raise
 
-        # 1. 构建 system prompt
+        # 2. 构建 system prompt
         system_prompt = self._build_system_prompt(conv)
 
-        # 2. 加载历史消息（最近 20 条，避免超 token 限制）
+        # 3. 加载历史消息（最近 20 条，避免超 token 限制）
         history = await self._load_history(conv.id, limit=20)
 
-        # 3. 调用 LLM
+        # 4. 调用 LLM
         try:
             result = await llm.chat(
                 user_content=user_content,
                 system_prompt=system_prompt,
                 history=history,
-                temperature=0.7,
-                max_tokens=2048,
+                temperature=resolved.temperature,
+                max_tokens=resolved.max_tokens or 2048,
             )
 
             logger.info(
@@ -364,12 +392,118 @@ class TutorService:
         content: str,
         role: str = "user",
     ):
-        """流式回复 — MVP stub，暂回退到同步调用"""
-        _user_msg, assistant_msg = await self.send_message(
-            conversation_id, content,
+        """
+        真正的流式回复 — SSE async generator
+
+        流程：
+        1. 保存用户消息
+        2. 逐 chunk 流式输出 LLM 回复（SSE data: 事件）
+        3. 流结束后保存完整 assistant 消息到数据库
+        4. 发送 [DONE] 信号
+        """
+        import json
+
+        # ── 1. 查找会话 & 保存用户消息 ───────────
+        conv = await self.get_conversation(conversation_id)
+
+        user_msg = Message(
+            id=str(generate_uuid7()),
+            conversation_id=conversation_id,
+            role="user",
+            content=content,
         )
-        # 模拟单块 SSE 事件
-        yield f"data: {assistant_msg.content}\n\n"
+        self.db.add(user_msg)
+        conv.message_count = (conv.message_count or 0) + 1
+        conv.last_message_at = datetime.now(timezone.utc)
+        await self.db.flush()
+
+        # ── 2. 准备 LLM 调用 ─────────────────────
+        from infrastructure.external.llm_client import LLMClient, ChatMessage
+        from application.services.model_config_service import ModelConfigService
+        from config import get_settings
+
+        TUTOR_SCENE_KEY = "tutor_chat"
+        model_svc = ModelConfigService(self.db, get_settings())
+
+        try:
+            resolved = await model_svc.resolve_model(TUTOR_SCENE_KEY)
+            llm = LLMClient(
+                api_key=resolved.api_key,
+                base_url=resolved.base_url,
+                default_model=resolved.model_name,
+            )
+        except Exception as e:
+            logger.error("stream_model_resolve_failed", error=str(e))
+            error_payload = json.dumps(
+                {"content": "抱歉，AI 暂时无法响应，请稍后再试。"},
+                ensure_ascii=False,
+            )
+            yield f"data: {error_payload}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
+        system_prompt = self._build_system_prompt(conv)
+        history = await self._load_history(conv.id, limit=20)
+
+        # ── 3. 流式调用 LLM & 逐 chunk 输出 ──────
+        full_content = []
+        token_count = 0
+
+        try:
+            async for chunk in llm.chat_stream(
+                user_content=content,
+                system_prompt=system_prompt,
+                history=history,
+                temperature=resolved.temperature,
+                max_tokens=resolved.max_tokens or 2048,
+            ):
+                if chunk.delta:
+                    full_content.append(chunk.delta)
+                    # SSE 格式：前端期望 JSON 对象或纯文本
+                    payload = json.dumps(
+                        {"content": chunk.delta}, ensure_ascii=False,
+                    )
+                    yield f"data: {payload}\n\n"
+
+        except Exception as e:
+            logger.error(
+                "llm_stream_failed",
+                conversation_id=conversation_id,
+                error=str(e),
+                exc_info=True,
+            )
+            if not full_content:
+                error_payload = json.dumps(
+                    {"content": "抱歉，AI 暂时无法响应，请稍后再试。"},
+                    ensure_ascii=False,
+                )
+                yield f"data: {error_payload}\n\n"
+
+        # ── 4. 保存 assistant 消息到数据库 ────────
+        assistant_content = "".join(full_content) or "抱歉，AI 暂时无法响应，请稍后再试。"
+
+        assistant_msg = Message(
+            id=str(generate_uuid7()),
+            conversation_id=conversation_id,
+            role="assistant",
+            content=assistant_content,
+            token_count=token_count,
+        )
+        self.db.add(assistant_msg)
+        conv.message_count = (conv.message_count or 0) + 1
+        conv.last_message_at = datetime.now(timezone.utc)
+
+        try:
+            await self.db.commit()
+        except Exception as e:
+            logger.error(
+                "stream_db_save_failed",
+                conversation_id=conversation_id,
+                error=str(e),
+            )
+            await self.db.rollback()
+
+        # ── 5. 发送结束信号 ──────────────────────
         yield "data: [DONE]\n\n"
 
     async def add_feedback(

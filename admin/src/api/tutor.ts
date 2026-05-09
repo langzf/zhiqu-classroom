@@ -78,7 +78,7 @@ export async function sendMessageStream(
   const baseURL = client.defaults.baseURL || '/api/v1';
 
   try {
-    const response = await fetch(`${baseURL}/tutor/conversations/${convId}/messages`, {
+    const response = await fetch(`${baseURL}/admin/tutor/conversations/${convId}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

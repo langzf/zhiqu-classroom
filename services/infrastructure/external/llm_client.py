@@ -90,11 +90,18 @@ class LLMClient:
         timeout: float = 60.0,
         max_retries: int = 2,
     ) -> None:
+        import httpx
+
+        # 强制 IPv4 以避免 IPv6 连接被拒的问题（Windows + 部分云 API 端点）
+        transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
+        http_client = httpx.AsyncClient(transport=transport)
+
         self._client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
             timeout=timeout,
             max_retries=max_retries,
+            http_client=http_client,
         )
         self.default_model = default_model
         self.embedding_model = embedding_model

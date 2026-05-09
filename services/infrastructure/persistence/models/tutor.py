@@ -56,7 +56,7 @@ class Conversation(Base, TimestampMixin, SoftDeleteMixin):
         String(30),
         nullable=False,
         default="free_chat",
-        comment="场景: free_chat|homework_help|concept_explain|review_guide|error_analysis",
+        comment="场景: free_chat|homework_help|review|quiz|exploration",
     )
     status: Mapped[str] = mapped_column(
         String(20),

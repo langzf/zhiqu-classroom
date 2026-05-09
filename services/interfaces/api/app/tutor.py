@@ -72,22 +72,8 @@ async def delete_conversation(conv_id: UUID, user: CurrentUser, svc: TutorSvc):
 
 # ── 消息 ──────────────────────────────────────────────
 
-@router.post("/conversations/{conv_id}/messages", summary="发送消息并获取 AI 回复")
+@router.post("/conversations/{conv_id}/messages", summary="发送消息（SSE 流式）")
 async def send_message(
-    conv_id: UUID, body: MessageSend,
-    user: CurrentUser, svc: TutorSvc,
-):
-    user_msg, ai_msg = await svc.send_and_reply(
-        conversation_id=str(conv_id), content=body.content, role="student",
-    )
-    return ok({
-        "user_message": MessageOut.model_validate(user_msg).model_dump(),
-        "ai_message": MessageOut.model_validate(ai_msg).model_dump(),
-    })
-
-
-@router.post("/conversations/{conv_id}/messages/stream", summary="流式发送消息")
-async def send_message_stream(
     conv_id: UUID, body: MessageSend,
     user: CurrentUser, svc: TutorSvc,
 ):

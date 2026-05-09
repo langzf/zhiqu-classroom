@@ -41,8 +41,8 @@ export interface Message {
 
 /** 发送消息响应 */
 export interface SendMessageResponse {
-  user_msg: Message;
-  assistant_msg: Message;
+  user_message: Message;
+  assistant_message: Message;
 }
 
 /** 反馈请求 */
