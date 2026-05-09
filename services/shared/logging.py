@@ -18,6 +18,7 @@ import queue
 import re
 import threading
 import time
+import traceback
 import urllib.error
 import urllib.request
 import uuid
@@ -350,7 +351,8 @@ class TraceLogReporter:
         return {
             "name": error.__class__.__name__,
             "message": str(error),
-            "stack": "",
+            "module": error.__class__.__module__,
+            "stack": "".join(traceback.format_exception(type(error), error, error.__traceback__)),
         }
 
 

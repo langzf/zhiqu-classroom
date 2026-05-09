@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import jwt as pyjwt
 from fastapi import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,9 +48,12 @@ async def _get_current_user(
     if not authorization.startswith("Bearer "):
         raise UnauthorizedError("无效的认证格式")
     token = authorization.removeprefix("Bearer ").strip()
-    payload = jwt.get_payload(token)
-    if payload is None:
-        raise UnauthorizedError("Token 无效或已过期")
+    try:
+        payload = jwt.get_payload(token)
+    except pyjwt.ExpiredSignatureError:
+        raise UnauthorizedError("token expired") from None
+    except pyjwt.InvalidTokenError:
+        raise UnauthorizedError("invalid token") from None
     return payload
 
 
