@@ -19,6 +19,22 @@ from shared.exceptions import ForbiddenError, NotFoundError, ValidationError
 
 logger = structlog.get_logger()
 
+_SCENE_ALIASES = {
+    "general": "free_chat",
+    "review_guide": "review",
+    "concept_explain": "exploration",
+    "error_analysis": "quiz",
+}
+_ALLOWED_SCENES = {"free_chat", "homework_help", "review", "quiz", "exploration"}
+
+
+def _normalize_scene(scene: str | None) -> str:
+    normalized = (scene or "free_chat").strip()
+    normalized = _SCENE_ALIASES.get(normalized, normalized)
+    if normalized not in _ALLOWED_SCENES:
+        raise ValidationError(f"unsupported conversation scene: {scene}")
+    return normalized
+
 
 class TutorService:
     """AI Tutor 核心服务"""
@@ -36,6 +52,7 @@ class TutorService:
         context: Optional[dict] = None,
     ) -> Conversation:
         """创建新会话"""
+        scene = _normalize_scene(scene)
         conv = Conversation(
             id=str(generate_uuid7()),
             student_id=student_id,
@@ -307,10 +324,23 @@ class TutorService:
 
         # 场景特化指令
         scene_prompts = {
+            "general": "学生正在自由提问，你可以回答学习相关的各类问题。",
             "free_chat": "学生正在自由提问，你可以回答学习相关的各类问题。",
             "homework_help": (
                 "学生正在寻求作业帮助。请引导学生思考，不要直接给出完整答案。"
                 "先帮助学生理解题目，提示解题思路，再逐步引导。"
+            ),
+            "review": (
+                "学生正在复习。请帮助学生梳理知识要点，"
+                "总结关键概念，必要时用结构化方式呈现。"
+            ),
+            "quiz": (
+                "学生正在做测验或练习。请关注解题过程和错误原因，"
+                "帮助学生理解关键步骤，而不是只给结论。"
+            ),
+            "exploration": (
+                "学生正在进行知识探索。请用清晰的例子解释概念，"
+                "适当拓展相关知识，但保持回答贴合学生问题。"
             ),
             "concept_explain": (
                 "学生需要概念讲解。请用简洁易懂的语言解释概念，"
