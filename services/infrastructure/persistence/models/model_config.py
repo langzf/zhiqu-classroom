@@ -100,6 +100,10 @@ class ModelConfig(Base):
     display_name: Mapped[str] = mapped_column(
         String(100), nullable=False, comment="前端显示名称"
     )
+    capability: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="chat",
+        comment="Legacy primary capability; kept in sync with capabilities[0]"
+    )
     capabilities: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=lambda: ["chat"],
         comment='能力标签: ["chat","vision","embedding","tts","stt","function_calling"]'

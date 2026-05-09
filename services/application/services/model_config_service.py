@@ -46,6 +46,10 @@ def _invalidate_cache(scene_key: str) -> None:
     _resolve_cache.pop(scene_key, None)
 
 
+def _normalize_capabilities(capabilities: list[str] | None) -> list[str]:
+    return capabilities or ["chat"]
+
+
 class ModelConfigService:
     """模型配置服务"""
 
@@ -241,11 +245,13 @@ class ModelConfigService:
         # 验证 provider 存在
         await self._get_provider_or_404(data.provider_id)
 
+        capabilities = _normalize_capabilities(data.capabilities)
         row = ModelConfig(
             provider_id=str(data.provider_id),
             model_name=data.model_name,
             display_name=data.display_name,
-            capabilities=data.capabilities,
+            capability=capabilities[0],
+            capabilities=capabilities,
             default_params=data.default_params,
             is_active=data.is_active,
             sort_order=data.sort_order,
@@ -267,6 +273,10 @@ class ModelConfigService:
         if "provider_id" in patch and patch["provider_id"] is not None:
             await self._get_provider_or_404(patch["provider_id"])
             patch["provider_id"] = str(patch["provider_id"])
+
+        if "capabilities" in patch:
+            patch["capabilities"] = _normalize_capabilities(patch["capabilities"])
+            patch["capability"] = patch["capabilities"][0]
 
         for k, v in patch.items():
             setattr(row, k, v)
