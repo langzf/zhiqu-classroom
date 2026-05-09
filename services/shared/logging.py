@@ -13,8 +13,13 @@ MVP 精简：JSON stdout → 终端查看 / Docker json-file → Promtail → Lo
 
 from __future__ import annotations
 
+import json
+import queue
 import re
+import threading
 import time
+import urllib.error
+import urllib.request
 import uuid
 from contextvars import ContextVar
 from typing import Any
@@ -221,6 +226,134 @@ _SKIP_PATHS = frozenset({"/health", "/", "/favicon.ico"})
 _access_logger = structlog.get_logger("http.access")
 
 
+class TraceLogReporter:
+    """后台批量上报到 trace-log-platform；失败静默，避免影响业务请求。"""
+
+    def __init__(
+        self,
+        *,
+        platform_url: str,
+        project_key: str,
+        service_name: str,
+        enabled: bool = True,
+        batch_size: int = 20,
+        flush_interval: float = 1.0,
+        queue_size: int = 2000,
+        timeout: float = 2.0,
+    ) -> None:
+        self.platform_url = platform_url.rstrip("/")
+        self.project_key = project_key
+        self.service_name = service_name
+        self.enabled = bool(enabled and self.platform_url and self.service_name)
+        self.batch_size = max(1, batch_size)
+        self.flush_interval = max(0.2, flush_interval)
+        self.timeout = max(0.1, timeout)
+        self._queue: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=max(100, queue_size))
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+        if self.enabled:
+            self._thread = threading.Thread(target=self._run, name="trace-log-reporter", daemon=True)
+            self._thread.start()
+
+    def report(
+        self,
+        *,
+        level: str,
+        message: str,
+        trace_id: str,
+        span_id: str,
+        parent_span_id: str | None = None,
+        path: str | None = None,
+        method: str | None = None,
+        status_code: int | None = None,
+        error: BaseException | None = None,
+        meta: dict[str, Any] | None = None,
+    ) -> None:
+        if not self.enabled:
+            return
+
+        payload = {
+            "level": level,
+            "message": message,
+            "traceId": trace_id,
+            "spanId": span_id,
+            "parentSpanId": parent_span_id,
+            "service": self.service_name,
+            "source": "backend",
+            "path": path,
+            "method": method,
+            "statusCode": status_code,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "error": self._error_payload(error),
+            "meta": {
+                "projectKey": self.project_key,
+                **(meta or {}),
+            },
+        }
+        self._enqueue(payload)
+
+    def shutdown(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=1.0)
+        self._flush()
+
+    def _enqueue(self, payload: dict[str, Any]) -> None:
+        try:
+            self._queue.put_nowait(payload)
+        except queue.Full:
+            try:
+                self._queue.get_nowait()
+                self._queue.put_nowait(payload)
+            except queue.Empty:
+                pass
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            time.sleep(self.flush_interval)
+            self._flush()
+
+    def _flush(self) -> None:
+        logs: list[dict[str, Any]] = []
+        for _ in range(self.batch_size):
+            try:
+                logs.append(self._queue.get_nowait())
+            except queue.Empty:
+                break
+
+        if not logs:
+            return
+
+        body = json.dumps({"source": "backend", "logs": logs}).encode("utf-8")
+        request = urllib.request.Request(
+            url=f"{self.platform_url}/v1/logs/batch",
+            data=body,
+            method="POST",
+            headers={
+                "content-type": "application/json",
+                "accept": "application/json",
+                "user-agent": "zhiqu-classroom-trace/1.0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                if response.status >= 300:
+                    raise RuntimeError(f"trace upload failed: HTTP {response.status}")
+        except (TimeoutError, urllib.error.HTTPError, urllib.error.URLError, RuntimeError):
+            return
+
+    @staticmethod
+    def _error_payload(error: BaseException | None) -> dict[str, str] | None:
+        if error is None:
+            return None
+        return {
+            "name": error.__class__.__name__,
+            "message": str(error),
+            "stack": "",
+        }
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """
     HTTP 请求日志中间件
@@ -232,6 +365,23 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     - 出口 INFO: status_code, duration_ms
     - 响应头回写 X-Trace-ID
     """
+
+    def __init__(
+        self,
+        app: Any,
+        *,
+        trace_platform_url: str = "",
+        trace_project_key: str = "zhiqu-classroom",
+        trace_service_name: str = "zhiqu-backend",
+        trace_enabled: bool = True,
+    ) -> None:
+        super().__init__(app)
+        self.trace_reporter = TraceLogReporter(
+            platform_url=trace_platform_url,
+            project_key=trace_project_key,
+            service_name=trace_service_name,
+            enabled=trace_enabled,
+        )
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
@@ -263,10 +413,37 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             query_string=str(request.query_params) or "",
             client_ip=client_ip,
         )
+        self.trace_reporter.report(
+            level="info",
+            message="request_start",
+            trace_id=trace_id,
+            span_id=span_id,
+            path=path,
+            method=request.method,
+            meta={
+                "clientIp": client_ip,
+            },
+        )
 
         # ── 执行请求 ──
         start = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            duration_ms = round((time.perf_counter() - start) * 1000, 2)
+            self.trace_reporter.report(
+                level="error",
+                message="request_error",
+                trace_id=trace_id,
+                span_id=span_id,
+                path=path,
+                method=request.method,
+                status_code=500,
+                error=exc,
+                meta={"durationMs": duration_ms},
+            )
+            raise
+
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
         # ── 响应头回写 ──
@@ -284,6 +461,16 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             path=path,
             status_code=response.status_code,
             duration_ms=duration_ms,
+        )
+        self.trace_reporter.report(
+            level="error" if response.status_code >= 500 else "warn" if response.status_code >= 400 else "info",
+            message="request_end",
+            trace_id=trace_id,
+            span_id=span_id,
+            path=path,
+            method=request.method,
+            status_code=response.status_code,
+            meta={"durationMs": duration_ms},
         )
 
         return response

@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     # 开发阶段允许所有来源（Cloudflare Tunnel 域名每次变化）
     cors_origins: list[str] = ["*"]
 
+    # ── Trace Log Platform ──
+    trace_enabled: bool = True
+    trace_platform_url: str = "https://trace.yueying.cloud"
+    trace_project_key: str = "zhiqu-classroom"
+    trace_service_name: str = "zhiqu-backend"
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

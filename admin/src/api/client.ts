@@ -1,6 +1,19 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@zhiqu/shared';
 import { useAuthStore } from '@/stores/authStore';
+import {
+  applyTraceHeaders,
+  childSpan,
+  createTraceContext,
+  installGlobalTraceHandlers,
+  reportTraceLog,
+  type TraceContext,
+} from './trace';
+
+interface TracedAxiosConfig extends InternalAxiosRequestConfig {
+  traceContext?: TraceContext;
+  traceStartedAt?: number;
+}
 
 export const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
@@ -8,8 +21,18 @@ export const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+installGlobalTraceHandlers();
+
 // ── Request interceptor: inject JWT ──
 client.interceptors.request.use((config) => {
+  const tracedConfig = config as TracedAxiosConfig;
+  const rootTrace = createTraceContext();
+  const requestTrace = childSpan(rootTrace);
+  tracedConfig.traceContext = requestTrace;
+  tracedConfig.traceStartedAt = performance.now();
+  config.headers = config.headers ?? {};
+  applyTraceHeaders(config.headers as unknown as Record<string, unknown>, requestTrace);
+
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -19,7 +42,18 @@ client.interceptors.request.use((config) => {
 
 // ── Response interceptor: unwrap & error handling ──
 client.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const config = res.config as TracedAxiosConfig;
+    reportTraceLog(res.status >= 400 ? 'warn' : 'info', 'frontend request finished', {
+      traceContext: config.traceContext,
+      path: res.config.url,
+      method: res.config.method?.toUpperCase(),
+      statusCode: res.status,
+      durationMs: elapsedMs(config.traceStartedAt),
+      meta: { app: 'admin' },
+    });
+    return res;
+  },
   (error) => {
     if (error.response) {
       const { status, data } = error.response;
@@ -32,9 +66,25 @@ client.interceptors.response.use(
         }
       }
     }
+    if (axios.isAxiosError(error)) {
+      const config = error.config as TracedAxiosConfig | undefined;
+      reportTraceLog(error.response?.status && error.response.status >= 500 ? 'error' : 'warn', 'frontend request failed', {
+        traceContext: config?.traceContext,
+        path: config?.url,
+        method: config?.method?.toUpperCase(),
+        statusCode: error.response?.status,
+        durationMs: elapsedMs(config?.traceStartedAt),
+        error,
+        meta: { app: 'admin' },
+      });
+    }
     return Promise.reject(error);
   },
 );
+
+function elapsedMs(startedAt: number | undefined): number | undefined {
+  return typeof startedAt === 'number' ? Math.round(performance.now() - startedAt) : undefined;
+}
 
 export default client;
 

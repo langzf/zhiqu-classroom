@@ -80,7 +80,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(
+    RequestLoggingMiddleware,
+    trace_platform_url=settings.trace_platform_url,
+    trace_project_key=settings.trace_project_key,
+    trace_service_name=settings.trace_service_name,
+    trace_enabled=settings.trace_enabled,
+)
 
 
 # ── 异常处理器 ────────────────────────────────────────
