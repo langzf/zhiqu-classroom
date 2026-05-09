@@ -75,7 +75,13 @@ client.interceptors.response.use(
         statusCode: error.response?.status,
         durationMs: elapsedMs(config?.traceStartedAt),
         error,
-        meta: { app: 'admin' },
+        meta: {
+          app: 'admin',
+          axiosCode: error.code,
+          responseData: safeJson(error.response?.data),
+          requestUrl: config?.url,
+          baseURL: config?.baseURL,
+        },
       });
     }
     return Promise.reject(error);
@@ -84,6 +90,17 @@ client.interceptors.response.use(
 
 function elapsedMs(startedAt: number | undefined): number | undefined {
   return typeof startedAt === 'number' ? Math.round(performance.now() - startedAt) : undefined;
+}
+
+function safeJson(value: unknown): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  try {
+    return JSON.stringify(value).slice(0, 1000);
+  } catch {
+    return String(value).slice(0, 1000);
+  }
 }
 
 export default client;

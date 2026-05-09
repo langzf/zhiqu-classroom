@@ -1,6 +1,7 @@
 import { RouterProvider } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { router } from './router';
+import { reportTraceLog } from './api/trace';
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
   return (
@@ -26,7 +27,19 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 
 export function App() {
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
+    <ErrorBoundary
+      FallbackComponent={ErrorFallback}
+      onError={(error, info) => {
+        reportTraceLog('error', 'react error boundary', {
+          error,
+          meta: {
+            app: 'student',
+            route: window.location.pathname,
+            componentStack: info.componentStack,
+          },
+        });
+      }}
+    >
       <RouterProvider router={router} />
     </ErrorBoundary>
   );
