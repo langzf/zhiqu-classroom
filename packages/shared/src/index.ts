@@ -4,6 +4,7 @@ export type { UserInfo, StudentProfile, TokenOut, LoginRequest, RegisterRequest,
 export type { Textbook, Chapter, KnowledgePoint, GeneratedResource } from './types/content';
 export type { Conversation, ConversationScene, Message, SendMessageResponse, FeedbackRequest } from './types/tutor';
 export { SCENE_LABELS } from './types/tutor';
+export type { VoiceProfile, VoiceSetting } from './types/voice';
 export type { LearningTask, TaskItem, TaskItemStatus, TaskType, LearningTaskType, TaskProgress, LearningRecord, SubmitProgressRequest } from './types/learning';
 export { TASK_TYPE_LABELS, LEARNING_TASK_TYPE_LABELS, TASK_ITEM_STATUS_LABELS } from './types/learning';
 

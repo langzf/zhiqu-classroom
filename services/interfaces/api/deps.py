@@ -20,6 +20,7 @@ from application.services.learning_core_service import LearningCoreService
 from application.services.prompt_service import PromptService
 from application.services.tutor_service import TutorService
 from application.services.user_service import UserService
+from application.services.voice_service import VoiceService
 
 
 # ── Settings & JWT ────────────────────────────────────
@@ -99,6 +100,9 @@ def _tutor_svc(db: DbSession) -> TutorService:
 def _user_svc(db: DbSession) -> UserService:
     return UserService(db=db)
 
+def _voice_svc(db: DbSession, settings: AppSettings) -> VoiceService:
+    return VoiceService(db=db, settings=settings)
+
 
 ContentSvc = Annotated[ContentService, Depends(_content_svc)]
 ExerciseSvc = Annotated[ExerciseService, Depends(_exercise_svc)]
@@ -107,3 +111,4 @@ LearningCoreSvc = Annotated[LearningCoreService, Depends(_learning_core_svc)]
 PromptSvc = Annotated[PromptService, Depends(_prompt_svc)]
 TutorSvc = Annotated[TutorService, Depends(_tutor_svc)]
 UserSvc = Annotated[UserService, Depends(_user_svc)]
+VoiceSvc = Annotated[VoiceService, Depends(_voice_svc)]

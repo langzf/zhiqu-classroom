@@ -8,3 +8,6 @@ dist
 build
 .env
 logs
+services/__pycache__
+services/.venv
+miniapp/node_modules

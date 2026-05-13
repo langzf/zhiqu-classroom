@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  Card, Input, Button, Space, Spin, message, Typography, Divider, Tag, Empty,
+  Card, Input, Button, Space, Spin, message, Typography, Divider, Tag, Empty, Select,
 } from 'antd';
-import { SendOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { AudioOutlined, SendOutlined, ArrowLeftOutlined, SoundOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getConversation,
@@ -12,6 +12,8 @@ import {
   type Conversation,
   type Message,
 } from '@/api/tutor';
+import { listVoiceProfiles, synthesizeSpeech, transcribeAudio } from '@/api/voice';
+import type { VoiceProfile } from '@zhiqu/shared';
 
 const { Text, Paragraph } = Typography;
 
@@ -24,8 +26,16 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState('');
   const [streamingText, setStreamingText] = useState('');
+  const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([]);
+  const [selectedVoiceProfileId, setSelectedVoiceProfileId] = useState<string | undefined>();
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioUrlRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,12 +45,15 @@ export default function ChatPage() {
     if (!convId) return;
     setLoading(true);
     try {
-      const [conv, msgRes] = await Promise.all([
+      const [conv, msgRes, profiles] = await Promise.all([
         getConversation(convId),
         listMessages(convId, { page: 1, page_size: 100 }),
+        listVoiceProfiles(false),
       ]);
       setConversation(conv);
       setMessages(msgRes.items);
+      setVoiceProfiles(profiles);
+      setSelectedVoiceProfileId((current) => current || profiles[0]?.id);
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '加载失败');
     } finally {
@@ -56,11 +69,82 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, streamingText]);
 
+  useEffect(() => {
+    return () => {
+      mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+    };
+  }, []);
+
+  const playAssistantText = async (text: string, messageId: string) => {
+    if (!text.trim()) return;
+    setSpeakingMessageId(messageId);
+    try {
+      const audio = await synthesizeSpeech(text, selectedVoiceProfileId);
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+      audioUrlRef.current = URL.createObjectURL(audio);
+      const player = new Audio(audioUrlRef.current);
+      player.onended = () => setSpeakingMessageId(null);
+      player.onerror = () => setSpeakingMessageId(null);
+      await player.play();
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : '语音播放失败');
+      setSpeakingMessageId(null);
+    }
+  };
+
+  const handleVoiceInput = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+    if (sending || transcribing) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        setRecording(false);
+        const audio = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        if (!audio.size) return;
+        setTranscribing(true);
+        try {
+          const result = await transcribeAudio(audio);
+          if (result.text) {
+            setInputText((prev) => `${prev}${prev ? ' ' : ''}${result.text}`);
+          }
+        } catch (err: unknown) {
+          message.error(err instanceof Error ? err.message : '语音识别失败');
+        } finally {
+          setTranscribing(false);
+        }
+      };
+
+      recorder.start();
+      setRecording(true);
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : '无法启动录音');
+      setRecording(false);
+    }
+  };
+
   const handleSend = async () => {
     const text = inputText.trim();
     if (!text || !convId || sending) return;
 
-    // Optimistically add user message
     const tempUserMsg: Message = {
       id: `temp-user-${Date.now()}`,
       conversation_id: convId,
@@ -75,7 +159,6 @@ export default function ChatPage() {
     setStreamingText('');
 
     try {
-      // Try streaming first, fall back to non-streaming
       let useStreaming = true;
       await sendMessageStream(
         convId,
@@ -84,7 +167,6 @@ export default function ChatPage() {
           setStreamingText((prev) => prev + chunk);
         },
         (fullText) => {
-          // Streaming done — add full assistant message
           setStreamingText('');
           const assistantMsg: Message = {
             id: `temp-assistant-${Date.now()}`,
@@ -98,12 +180,10 @@ export default function ChatPage() {
           setSending(false);
         },
         async () => {
-          // On streaming error, fall back to non-streaming
           useStreaming = false;
           try {
             setStreamingText('');
             const result = await sendMessage(convId, text);
-            // Replace temp user msg with real one, add assistant msg
             setMessages((prev) => {
               const withoutTemp = prev.filter((m) => m.id !== tempUserMsg.id);
               return [...withoutTemp, result.user_message, result.assistant_message];
@@ -115,7 +195,6 @@ export default function ChatPage() {
           }
         },
       );
-      // If streaming was used and completed via onDone, sending is already false
       if (!useStreaming) return;
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '发送失败');
@@ -168,18 +247,29 @@ export default function ChatPage() {
           >
             {msg.content}
           </Paragraph>
-          <Text
-            type="secondary"
-            style={{
-              fontSize: 11,
-              display: 'block',
-              textAlign: 'right',
-              marginTop: 4,
-              color: isUser ? 'rgba(255,255,255,0.7)' : undefined,
-            }}
-          >
-            {new Date(msg.created_at).toLocaleTimeString('zh-CN')}
-          </Text>
+          <Space size={8} style={{ width: '100%', justifyContent: 'space-between', marginTop: 4 }}>
+            {!isUser && !isSystem ? (
+              <Button
+                size="small"
+                type="link"
+                icon={<SoundOutlined />}
+                onClick={() => playAssistantText(msg.content, msg.id)}
+                loading={speakingMessageId === msg.id}
+                style={{ padding: 0 }}
+              >
+                播放
+              </Button>
+            ) : <span />}
+            <Text
+              type="secondary"
+              style={{
+                fontSize: 11,
+                color: isUser ? 'rgba(255,255,255,0.7)' : undefined,
+              }}
+            >
+              {new Date(msg.created_at).toLocaleTimeString('zh-CN')}
+            </Text>
+          </Space>
         </div>
       </div>
     );
@@ -203,18 +293,22 @@ export default function ChatPage() {
             onClick={() => navigate('/tutor')}
           />
           <span>{conversation?.title || '对话'}</span>
-          {conversation?.scene && (
-            <Tag>
-              {conversation.scene === 'qa' ? '知识问答' :
-               conversation.scene === 'explain' ? '概念讲解' :
-               conversation.scene === 'exercise' ? '练习辅导' : '自由对话'}
-            </Tag>
-          )}
+          {conversation?.scene && <Tag>{conversation.scene}</Tag>}
         </Space>
+      }
+      extra={
+        <Select
+          size="small"
+          style={{ width: 180 }}
+          placeholder="选择播报音色"
+          allowClear
+          value={selectedVoiceProfileId}
+          onChange={setSelectedVoiceProfileId}
+          options={voiceProfiles.map((profile) => ({ label: profile.name, value: profile.id }))}
+        />
       }
       bodyStyle={{ padding: 0, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)' }}
     >
-      {/* Messages area */}
       <div
         style={{
           flex: 1,
@@ -228,7 +322,6 @@ export default function ChatPage() {
         ) : (
           <>
             {messages.map(renderMessage)}
-            {/* Streaming text indicator */}
             {streamingText && (
               <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16 }}>
                 <div
@@ -243,7 +336,7 @@ export default function ChatPage() {
                 >
                   <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
                     {streamingText}
-                    <span className="typing-cursor">▊</span>
+                    <span className="typing-cursor">|</span>
                   </Paragraph>
                 </div>
               </div>
@@ -261,18 +354,26 @@ export default function ChatPage() {
 
       <Divider style={{ margin: 0 }} />
 
-      {/* Input area */}
       <div style={{ padding: '12px 24px', background: '#fff' }}>
         <Space.Compact style={{ width: '100%' }}>
+          <Button
+            icon={<AudioOutlined />}
+            onClick={handleVoiceInput}
+            loading={transcribing}
+            danger={recording}
+            disabled={sending}
+            style={{ height: 'auto', borderRadius: '8px 0 0 8px' }}
+          >
+            {recording ? '停止' : '语音'}
+          </Button>
           <Input.TextArea
             ref={inputRef as React.Ref<unknown> as React.Ref<HTMLTextAreaElement>}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+            placeholder={transcribing ? '正在识别语音...' : '输入消息... (Enter 发送，Shift+Enter 换行)'}
             autoSize={{ minRows: 1, maxRows: 4 }}
             disabled={sending}
-            style={{ borderRadius: '8px 0 0 8px' }}
           />
           <Button
             type="primary"

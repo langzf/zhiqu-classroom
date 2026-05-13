@@ -8,10 +8,12 @@ from interfaces.api.admin.content import router as admin_content_router
 from interfaces.api.admin.learning import router as admin_learning_router
 from interfaces.api.admin.tutor import router as admin_tutor_router
 from interfaces.api.admin.model_config import router as admin_model_config_router
+from interfaces.api.admin.voice import router as admin_voice_router
 from interfaces.api.app.user import router as app_user_router
 from interfaces.api.app.tutor import router as app_tutor_router
 from interfaces.api.app.learning import router as app_learning_router
 from interfaces.api.app.content import router as app_content_router
+from interfaces.api.app.voice import router as app_voice_router
 
 
 def register_routers(app: FastAPI) -> None:
@@ -24,8 +26,10 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(admin_learning_router)
     app.include_router(admin_tutor_router)
     app.include_router(admin_model_config_router)
+    app.include_router(admin_voice_router)
     # 学生端 App
     app.include_router(app_user_router)
     app.include_router(app_tutor_router)
     app.include_router(app_learning_router)
     app.include_router(app_content_router)
+    app.include_router(app_voice_router)

@@ -34,6 +34,9 @@ from infrastructure.persistence.models.model_config import (
     SceneModelBinding,
 )
 
+# voice
+from infrastructure.persistence.models.voice import VoiceProfile, UserVoiceSetting
+
 # ── user ──
 from infrastructure.persistence.models.user import (
     User,
@@ -74,4 +77,7 @@ __all__ = [
     "ModelProvider",
     "ModelConfig",
     "SceneModelBinding",
+    # voice
+    "VoiceProfile",
+    "UserVoiceSetting",
 ]

@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     llm_embedding_model: str = "text-embedding-v3"
     llm_embedding_dim: int = 1024
 
+    # Voice services
+    stt_service_url: str = "https://stt.yueying.cloud"
+    tts_service_url: str = "https://tts.yueying.cloud"
+    openvoice_service_url: str = "https://openvoice.yueying.cloud"
+    default_tts_model: str = "kokoro"
+    default_tts_voice: str = "af_heart"
+
     # ── SMS ──
     sms_provider: str = "mock"  # mock / aliyun
     sms_access_key: str = ""

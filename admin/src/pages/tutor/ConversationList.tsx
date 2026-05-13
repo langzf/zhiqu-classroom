@@ -16,10 +16,11 @@ import {
 } from '@/api/tutor';
 
 const SCENE_MAP: Record<string, { label: string; color: string }> = {
-  qa: { label: '知识问答', color: 'blue' },
-  explain: { label: '概念讲解', color: 'green' },
-  exercise: { label: '练习辅导', color: 'orange' },
-  general: { label: '自由对话', color: 'default' },
+  free_chat: { label: '自由对话', color: 'default' },
+  homework_help: { label: '答疑解惑', color: 'blue' },
+  review: { label: '复习巩固', color: 'green' },
+  quiz: { label: '测验练习', color: 'orange' },
+  exploration: { label: '知识探索', color: 'purple' },
 };
 
 export default function ConversationList() {
@@ -55,7 +56,7 @@ export default function ConversationList() {
   const handleCreate = async () => {
     try {
       const conv = await createConversation({
-        scene: 'general',
+        scene: 'free_chat',
         title: `新对话 ${new Date().toLocaleString('zh-CN')}`,
       });
       message.success('创建成功');
