@@ -1,5 +1,6 @@
 const { request } = require('../../utils/request');
 const { saveAuth, saveUser } = require('../../utils/auth');
+const { reportTraceLog } = require('../../utils/trace');
 
 function wxLogin() {
   return new Promise((resolve, reject) => {
@@ -12,6 +13,14 @@ function wxLogin() {
         }
       },
       fail(err) {
+        reportTraceLog('error', 'miniapp wx.login failed', {
+          error: err,
+          path: '/pages/login/index',
+          method: 'WX_LOGIN',
+          meta: {
+            errMsg: err.errMsg
+          }
+        });
         reject(new Error(err.errMsg || '微信登录失败'));
       }
     });
@@ -41,6 +50,14 @@ Page({
       }
       wx.switchTab({ url: '/pages/home/index' });
     } catch (err) {
+      reportTraceLog('error', 'miniapp wechat login flow failed', {
+        error: err,
+        path: '/pages/login/index',
+        method: 'LOGIN_FLOW',
+        meta: {
+          stage: 'wechat_login'
+        }
+      });
       wx.showToast({ title: err.message || '登录失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });

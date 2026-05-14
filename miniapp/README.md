@@ -3,6 +3,7 @@
 这是一个独立的微信小程序前端项目，默认复用现有后端：
 
 - API: `https://zqback.yueying.cloud/api/v1`
+- Trace 日志平台: `https://trace.yueying.cloud`
 - 登录: 微信小程序 `wx.login` 一键登录，后端用 code2Session 绑定 openid
 - 核心能力: 学习首页、AI 会话、语音输入、语音播报、音色设置
 
@@ -19,7 +20,9 @@
 
 - `setting.urlCheck = false`
 
-这只能用于本地调试。正式预览、真机调试和发布前，需要在微信小程序后台配置合法域名。
+这只能用于本地调试。体验版、真机调试和正式发布必须在微信公众平台配置服务器域名，否则手机端会报：
+
+- `request:fail url not in domain list`
 
 操作路径：
 
@@ -31,10 +34,22 @@
 需要配置：
 
 - request 合法域名: `https://zqback.yueying.cloud`
+- request 合法域名: `https://trace.yueying.cloud`
 - uploadFile 合法域名: `https://zqback.yueying.cloud`
 - downloadFile 合法域名: `https://zqback.yueying.cloud`
 
-注意：微信后台域名只填协议和域名，不要填写 `/api/v1` 路径。
+注意：微信后台域名只填协议和域名，不要填写 `/api/v1`、`/v1/logs/batch` 等路径。
+
+## Trace 日志
+
+小程序请求会自动：
+
+- 注入 `x-trace-id`
+- 注入 `x-parent-span-id`
+- 注入 `x-client-app: zhiqu-miniapp`
+- 上报请求成功、请求失败、上传失败、全局运行时错误到 `trace.yueying.cloud`
+
+日志上报必须 fail-open，任何日志失败都不能影响登录和聊天。
 
 ## 后端配置
 

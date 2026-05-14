@@ -1,5 +1,11 @@
 const { API_BASE_URL } = require('./config');
 const { getToken, clearAuth } = require('./auth');
+const {
+  applyTraceHeaders,
+  childSpan,
+  createTraceContext,
+  reportTraceLog
+} = require('./trace');
 
 function buildUrl(path) {
   if (/^https?:\/\//.test(path)) return path;
@@ -16,24 +22,50 @@ function unwrap(body) {
   return body.data;
 }
 
+function elapsedMs(startedAt) {
+  return Date.now() - startedAt;
+}
+
+function makeTrace() {
+  return childSpan(createTraceContext());
+}
+
 function request(options) {
   const token = getToken();
+  const traceContext = makeTrace();
+  const startedAt = Date.now();
+  const url = buildUrl(options.url);
+  const method = options.method || 'GET';
   const header = Object.assign({
     'content-type': 'application/json'
   }, options.header || {});
+
+  applyTraceHeaders(header, traceContext);
   if (token) {
     header.Authorization = `Bearer ${token}`;
   }
 
   return new Promise((resolve, reject) => {
     wx.request({
-      url: buildUrl(options.url),
-      method: options.method || 'GET',
+      url,
+      method,
       data: options.data,
       header,
       timeout: options.timeout || 60000,
       responseType: options.responseType || 'text',
       success(res) {
+        reportTraceLog(res.statusCode >= 400 ? 'warn' : 'info', 'miniapp request finished', {
+          traceContext,
+          path: options.url,
+          method,
+          statusCode: res.statusCode,
+          durationMs: elapsedMs(startedAt),
+          meta: {
+            requestUrl: url,
+            responseTraceId: res.header && (res.header['X-Trace-ID'] || res.header['x-trace-id'])
+          }
+        });
+
         if (res.statusCode === 401) {
           clearAuth();
           wx.redirectTo({ url: '/pages/login/index' });
@@ -47,10 +79,30 @@ function request(options) {
         try {
           resolve(options.raw ? res : unwrap(res.data));
         } catch (err) {
+          reportTraceLog('warn', 'miniapp response unwrap failed', {
+            traceContext,
+            path: options.url,
+            method,
+            statusCode: res.statusCode,
+            durationMs: elapsedMs(startedAt),
+            error: err,
+            meta: { requestUrl: url }
+          });
           reject(err);
         }
       },
       fail(err) {
+        reportTraceLog('error', 'miniapp request failed', {
+          traceContext,
+          path: options.url,
+          method,
+          durationMs: elapsedMs(startedAt),
+          error: err,
+          meta: {
+            requestUrl: url,
+            errMsg: err.errMsg
+          }
+        });
         reject(new Error(err.errMsg || '网络异常'));
       }
     });
@@ -59,14 +111,30 @@ function request(options) {
 
 function uploadAudio(path, filePath) {
   const token = getToken();
+  const traceContext = makeTrace();
+  const startedAt = Date.now();
+  const url = buildUrl(path);
+  const header = token ? { Authorization: `Bearer ${token}` } : {};
+
+  applyTraceHeaders(header, traceContext);
+
   return new Promise((resolve, reject) => {
     wx.uploadFile({
-      url: buildUrl(path),
+      url,
       filePath,
       name: 'file',
-      header: token ? { Authorization: `Bearer ${token}` } : {},
+      header,
       timeout: 120000,
       success(res) {
+        reportTraceLog(res.statusCode >= 400 ? 'warn' : 'info', 'miniapp upload finished', {
+          traceContext,
+          path,
+          method: 'POST',
+          statusCode: res.statusCode,
+          durationMs: elapsedMs(startedAt),
+          meta: { requestUrl: url }
+        });
+
         if (res.statusCode === 401) {
           clearAuth();
           wx.redirectTo({ url: '/pages/login/index' });
@@ -77,10 +145,30 @@ function uploadAudio(path, filePath) {
           const body = JSON.parse(res.data);
           resolve(unwrap(body));
         } catch (err) {
+          reportTraceLog('warn', 'miniapp upload unwrap failed', {
+            traceContext,
+            path,
+            method: 'POST',
+            statusCode: res.statusCode,
+            durationMs: elapsedMs(startedAt),
+            error: err,
+            meta: { requestUrl: url }
+          });
           reject(err);
         }
       },
       fail(err) {
+        reportTraceLog('error', 'miniapp upload failed', {
+          traceContext,
+          path,
+          method: 'POST',
+          durationMs: elapsedMs(startedAt),
+          error: err,
+          meta: {
+            requestUrl: url,
+            errMsg: err.errMsg
+          }
+        });
         reject(new Error(err.errMsg || '上传失败'));
       }
     });
