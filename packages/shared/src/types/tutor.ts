@@ -36,6 +36,20 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   token_count: number | null;
+  metadata?: {
+    message_type?: 'text' | 'voice';
+    transcript?: string;
+    audio?: {
+      url?: string;
+      object_name?: string;
+      content_type?: string;
+      filename?: string;
+      duration_ms?: number;
+      source?: 'user_upload' | 'assistant_tts';
+    };
+    tts_status?: 'ready' | 'failed' | 'skipped';
+    [key: string]: unknown;
+  } | null;
   created_at: string;
 }
 

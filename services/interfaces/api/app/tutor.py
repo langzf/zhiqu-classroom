@@ -2,20 +2,84 @@
 
 from __future__ import annotations
 
+from pathlib import PurePath
 from uuid import UUID
 from typing import Optional
 
-from fastapi import APIRouter, Query
-from fastapi.responses import StreamingResponse
+import structlog
+from fastapi import APIRouter, File, Query, UploadFile
+from fastapi.responses import Response, StreamingResponse
 
+from infrastructure.external.minio_client import download_file, upload_file
+from infrastructure.persistence.models import Message
 from shared.response import ok, paged
+from shared.exceptions import ForbiddenError, ValidationError
 from interfaces.schemas.tutor import (
     ConversationCreate, ConversationUpdate, ConversationOut,
     MessageSend, MessageOut, FeedbackCreate,
 )
-from interfaces.api.deps import CurrentUser, TutorSvc
+from interfaces.api.deps import CurrentUser, TutorSvc, VoiceSvc
 
 router = APIRouter(prefix="/api/v1/app/tutor", tags=["app-tutor"])
+log = structlog.get_logger(__name__)
+
+
+def _message_out(message: Message) -> dict:
+    return MessageOut.model_validate(message).model_dump(mode="json")
+
+
+def _audio_url(message_id: str) -> str:
+    return f"/app/tutor/messages/{message_id}/audio"
+
+
+def _audio_extension(filename: str | None, content_type: str | None) -> str:
+    suffix = PurePath(filename or "").suffix.lower()
+    if suffix in {".mp3", ".m4a", ".wav", ".webm", ".ogg", ".aac"}:
+        return suffix
+    if content_type == "audio/mpeg":
+        return ".mp3"
+    if content_type == "audio/mp4":
+        return ".m4a"
+    if content_type == "audio/webm":
+        return ".webm"
+    if content_type == "audio/wav":
+        return ".wav"
+    return ".mp3"
+
+
+async def _cache_assistant_tts(message: Message, user_id: str, voice_svc: VoiceSvc) -> None:
+    setting, _profile = await voice_svc.get_user_setting(user_id)
+    if not setting.auto_play:
+        message.metadata_ = {**(message.metadata_ or {}), "tts_status": "skipped"}
+        return
+
+    try:
+        audio, content_type = await voice_svc.synthesize(
+            text=message.content,
+            profile_id=setting.voice_profile_id,
+        )
+        object_name = f"tutor/messages/{message.id}/assistant-tts{_audio_extension(None, content_type)}"
+        await upload_file(object_name, audio, content_type)
+        message.metadata_ = {
+            **(message.metadata_ or {}),
+            "message_type": "text",
+            "tts_status": "ready",
+            "audio": {
+                "source": "assistant_tts",
+                "object_name": object_name,
+                "content_type": content_type,
+                "url": _audio_url(str(message.id)),
+            },
+        }
+    except Exception as exc:
+        message.metadata_ = {**(message.metadata_ or {}), "tts_status": "failed"}
+        log.error(
+            "assistant_tts_cache_failed",
+            message_id=str(message.id),
+            user_id=user_id,
+            error=str(exc),
+            exc_info=True,
+        )
 
 
 # ── 会话 CRUD ─────────────────────────────────────────
@@ -81,6 +145,95 @@ async def send_message(
         conversation_id=str(conv_id), content=body.content, role="student",
     )
     return StreamingResponse(stream, media_type="text/event-stream")
+
+
+@router.post("/conversations/{conv_id}/messages/sync", summary="发送文本消息并可预生成语音")
+async def send_message_sync(
+    conv_id: UUID, body: MessageSend,
+    user: CurrentUser, svc: TutorSvc, voice_svc: VoiceSvc,
+):
+    user_msg, assistant_msg = await svc.send_and_reply(
+        conversation_id=str(conv_id),
+        content=body.content,
+        role="student",
+        user_metadata={"message_type": "text"},
+    )
+    await _cache_assistant_tts(assistant_msg, user.sub, voice_svc)
+    return ok({
+        "user_message": _message_out(user_msg),
+        "assistant_message": _message_out(assistant_msg),
+    })
+
+
+@router.post("/conversations/{conv_id}/voice-messages", summary="发送语音消息")
+async def send_voice_message(
+    conv_id: UUID,
+    user: CurrentUser,
+    svc: TutorSvc,
+    voice_svc: VoiceSvc,
+    file: UploadFile = File(...),
+):
+    audio = await file.read()
+    if not audio:
+        raise ValidationError("empty audio file")
+
+    content_type = file.content_type or "audio/mpeg"
+    object_name = (
+        f"tutor/conversations/{conv_id}/voice-input/"
+        f"{PurePath(file.filename or 'recording.mp3').stem}-{len(audio)}"
+        f"{_audio_extension(file.filename, content_type)}"
+    )
+    await upload_file(object_name, audio, content_type)
+
+    transcript = await voice_svc.transcribe(
+        filename=file.filename or "recording.mp3",
+        content_type=content_type,
+        audio=audio,
+    )
+    transcript = (transcript or "").strip()
+    if not transcript:
+        raise ValidationError("voice transcript is empty")
+
+    user_metadata = {
+        "message_type": "voice",
+        "transcript": transcript,
+        "audio": {
+            "source": "user_upload",
+            "object_name": object_name,
+            "content_type": content_type,
+            "filename": file.filename or "recording.mp3",
+        },
+    }
+    user_msg, assistant_msg = await svc.send_and_reply(
+        conversation_id=str(conv_id),
+        content=transcript,
+        role="student",
+        user_metadata=user_metadata,
+    )
+    user_metadata["audio"]["url"] = _audio_url(str(user_msg.id))
+    user_msg.metadata_ = user_metadata
+    await _cache_assistant_tts(assistant_msg, user.sub, voice_svc)
+
+    return ok({
+        "user_message": _message_out(user_msg),
+        "assistant_message": _message_out(assistant_msg),
+    })
+
+
+@router.get("/messages/{message_id}/audio", summary="下载消息音频")
+async def get_message_audio(message_id: UUID, user: CurrentUser, svc: TutorSvc):
+    msg = await svc.get_message(str(message_id))
+    conv = await svc.get_conversation(str(msg.conversation_id))
+    if str(conv.student_id) != user.sub:
+        raise ForbiddenError("message audio is not accessible")
+
+    metadata = msg.metadata_ or {}
+    audio_meta = metadata.get("audio") if isinstance(metadata, dict) else None
+    if not isinstance(audio_meta, dict) or not audio_meta.get("object_name"):
+        raise ValidationError("message has no audio")
+
+    audio = await download_file(audio_meta["object_name"])
+    return Response(content=audio, media_type=audio_meta.get("content_type") or "audio/mpeg")
 
 
 @router.get("/conversations/{conv_id}/messages", summary="消息列表")

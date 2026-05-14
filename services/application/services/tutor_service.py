@@ -175,6 +175,7 @@ class TutorService:
         self,
         conversation_id: str,
         content: str,
+        user_metadata: dict | None = None,
     ) -> tuple[Message, Message]:
         """
         发送用户消息 → 调用 LLM → 返回 (user_msg, assistant_msg)
@@ -192,6 +193,7 @@ class TutorService:
             conversation_id=conversation_id,
             role="user",
             content=content,
+            metadata_=user_metadata or {"message_type": "text"},
         )
         self.db.add(user_msg)
 
@@ -206,6 +208,7 @@ class TutorService:
             content=ai_reply["content"],
             token_count=ai_reply.get("token_count"),
             model_name=ai_reply.get("model_name"),
+            metadata_={"message_type": "text", "tts_status": "skipped"},
         )
         self.db.add(assistant_msg)
 
@@ -412,9 +415,10 @@ class TutorService:
         conversation_id: str,
         content: str,
         role: str = "user",
+        user_metadata: dict | None = None,
     ) -> tuple[Message, Message]:
         """send_message 的路由适配别名"""
-        return await self.send_message(conversation_id, content)
+        return await self.send_message(conversation_id, content, user_metadata=user_metadata)
 
     async def send_and_reply_stream(
         self,

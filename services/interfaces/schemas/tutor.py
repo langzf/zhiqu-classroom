@@ -10,7 +10,7 @@ from datetime import datetime
 from uuid import UUID
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from interfaces.schemas.base import OrmBase
 
@@ -72,7 +72,17 @@ class MessageOut(OrmBase):
     content: str
     token_count: Optional[int]
     model_name: Optional[str]
+    metadata: Optional[dict] = None
     created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_metadata(cls, data):
+        if hasattr(data, "__dict__"):
+            d = dict(data.__dict__)
+            d["metadata"] = getattr(data, "metadata_", None)
+            return d
+        return data
 
 
 # ── Feedback ──────────────────────────────────────────

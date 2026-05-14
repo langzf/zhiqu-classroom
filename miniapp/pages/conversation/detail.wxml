@@ -3,15 +3,15 @@
     <view wx:if="{{messages.length === 0}}" class="empty-state">
       <view class="empty-mark">AI</view>
       <view class="empty-title">开始一次学习对话</view>
-      <view class="empty-desc">可以打字，也可以按住麦克风说出问题。</view>
+      <view class="empty-desc">可以打字，也可以直接发送语音。</view>
     </view>
 
     <view wx:for="{{messages}}" wx:key="id" id="msg-{{index}}" class="message {{item.role === 'user' ? 'user' : 'assistant'}}">
       <view wx:if="{{item.role !== 'user'}}" class="avatar ai-avatar">AI</view>
-      <view class="bubble">
+      <view class="bubble {{item.metadata && item.metadata.message_type === 'voice' ? 'voice-bubble' : ''}}">
         <view wx:if="{{item.role === 'assistant'}}" class="assistant-tools">
           <text class="assistant-name">AI 助教</text>
-          <button class="icon-btn speak-btn" data-text="{{item.content}}" bindtap="playText" aria-label="播放语音">
+          <button class="icon-btn speak-btn {{playingMessageId === item.id ? 'playing' : ''}}" data-id="{{item.id}}" bindtap="playMessageAudio" aria-label="播放语音">
             <view class="speaker-glyph">
               <view class="speaker-core"></view>
               <view class="speaker-wave wave-one"></view>
@@ -19,7 +19,18 @@
             </view>
           </button>
         </view>
-        <view class="content">{{item.content}}</view>
+
+        <button wx:if="{{item.metadata && item.metadata.message_type === 'voice'}}" class="voice-message" data-id="{{item.id}}" bindtap="playMessageAudio">
+          <view class="voice-message-icon">
+            <view class="speaker-glyph">
+              <view class="speaker-core"></view>
+              <view class="speaker-wave wave-one"></view>
+              <view class="speaker-wave wave-two"></view>
+            </view>
+          </view>
+          <text>语音消息</text>
+        </button>
+        <view wx:else class="content">{{item.content}}</view>
       </view>
       <view wx:if="{{item.role === 'user'}}" class="avatar user-avatar">我</view>
     </view>
@@ -35,20 +46,20 @@
   </scroll-view>
 
   <view class="composer-wrap">
-    <view wx:if="{{recording || transcribing}}" class="voice-status {{recording ? 'recording' : ''}}">
+    <view wx:if="{{recording}}" class="voice-status recording">
       <view class="voice-wave"></view>
-      <text>{{recording ? '正在聆听，轻点麦克风结束' : '正在识别语音...'}}</text>
+      <text>正在录音，轻点麦克风发送</text>
     </view>
 
     <view class="input-bar">
-      <button class="icon-btn record-btn {{recording ? 'recording' : ''}}" bindtap="toggleRecord" disabled="{{sending || transcribing}}" aria-label="语音输入">
+      <button class="icon-btn record-btn {{recording ? 'recording' : ''}}" bindtap="toggleRecord" disabled="{{sending}}" aria-label="语音输入">
         <view class="mic-glyph">
           <view class="mic-head"></view>
           <view class="mic-stem"></view>
           <view class="mic-base"></view>
         </view>
       </button>
-      <textarea class="text-input" auto-height maxlength="1000" placeholder="{{transcribing ? '正在识别语音...' : '问点什么'}}" value="{{input}}" bindinput="onInput" disabled="{{sending}}" />
+      <textarea class="text-input" auto-height maxlength="1000" placeholder="问点什么" value="{{input}}" bindinput="onInput" disabled="{{sending}}" />
       <button class="icon-btn send-btn {{input ? 'active' : ''}}" loading="{{sending}}" disabled="{{sending || !input}}" bindtap="send" aria-label="发送">
         <text class="send-arrow">↑</text>
       </button>

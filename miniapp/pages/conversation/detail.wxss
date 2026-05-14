@@ -132,6 +132,43 @@
   font-size: 30rpx;
 }
 
+.voice-bubble {
+  min-width: 240rpx;
+}
+
+.voice-message {
+  margin: 0;
+  padding: 0;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.voice-message::after {
+  border: 0;
+}
+
+.voice-message-icon {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.message.assistant .voice-message-icon {
+  background: #eef5ff;
+}
+
 .icon-btn {
   margin: 0;
   padding: 0;
@@ -153,6 +190,10 @@
   width: 48rpx;
   height: 48rpx;
   background: #eef5ff;
+}
+
+.speak-btn.playing {
+  background: #dbeafe;
 }
 
 .speaker-glyph {

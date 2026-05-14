@@ -13,12 +13,8 @@ function buildUrl(path) {
 }
 
 function unwrap(body) {
-  if (!body || typeof body !== 'object') {
-    return body;
-  }
-  if (body.code !== 0) {
-    throw new Error(body.message || '请求失败');
-  }
+  if (!body || typeof body !== 'object') return body;
+  if (body.code !== 0) throw new Error(body.message || '请求失败');
   return body.data;
 }
 
@@ -30,20 +26,28 @@ function makeTrace() {
   return childSpan(createTraceContext());
 }
 
-function request(options) {
+function authHeader(traceContext, extraHeader) {
   const token = getToken();
+  const header = Object.assign({}, extraHeader || {});
+  applyTraceHeaders(header, traceContext);
+  if (token) header.Authorization = `Bearer ${token}`;
+  return header;
+}
+
+function handleUnauthorized(reject) {
+  clearAuth();
+  wx.redirectTo({ url: '/pages/login/index' });
+  reject(new Error('登录已过期'));
+}
+
+function request(options) {
   const traceContext = makeTrace();
   const startedAt = Date.now();
   const url = buildUrl(options.url);
   const method = options.method || 'GET';
-  const header = Object.assign({
+  const header = authHeader(traceContext, Object.assign({
     'content-type': 'application/json'
-  }, options.header || {});
-
-  applyTraceHeaders(header, traceContext);
-  if (token) {
-    header.Authorization = `Bearer ${token}`;
-  }
+  }, options.header || {}));
 
   return new Promise((resolve, reject) => {
     wx.request({
@@ -67,9 +71,7 @@ function request(options) {
         });
 
         if (res.statusCode === 401) {
-          clearAuth();
-          wx.redirectTo({ url: '/pages/login/index' });
-          reject(new Error('登录已过期'));
+          handleUnauthorized(reject);
           return;
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
@@ -109,22 +111,19 @@ function request(options) {
   });
 }
 
-function uploadAudio(path, filePath) {
-  const token = getToken();
+function uploadFile(path, filePath, options) {
   const traceContext = makeTrace();
   const startedAt = Date.now();
   const url = buildUrl(path);
-  const header = token ? { Authorization: `Bearer ${token}` } : {};
-
-  applyTraceHeaders(header, traceContext);
+  const header = authHeader(traceContext, options && options.header);
 
   return new Promise((resolve, reject) => {
     wx.uploadFile({
       url,
       filePath,
-      name: 'file',
+      name: (options && options.name) || 'file',
       header,
-      timeout: 120000,
+      timeout: (options && options.timeout) || 120000,
       success(res) {
         reportTraceLog(res.statusCode >= 400 ? 'warn' : 'info', 'miniapp upload finished', {
           traceContext,
@@ -136,14 +135,15 @@ function uploadAudio(path, filePath) {
         });
 
         if (res.statusCode === 401) {
-          clearAuth();
-          wx.redirectTo({ url: '/pages/login/index' });
-          reject(new Error('登录已过期'));
+          handleUnauthorized(reject);
+          return;
+        }
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          reject(new Error(`上传失败 ${res.statusCode}`));
           return;
         }
         try {
-          const body = JSON.parse(res.data);
-          resolve(unwrap(body));
+          resolve(unwrap(JSON.parse(res.data)));
         } catch (err) {
           reportTraceLog('warn', 'miniapp upload unwrap failed', {
             traceContext,
@@ -175,6 +175,14 @@ function uploadAudio(path, filePath) {
   });
 }
 
+function uploadAudio(path, filePath) {
+  return uploadFile(path, filePath);
+}
+
+function sendVoiceMessage(conversationId, filePath) {
+  return uploadFile(`/app/tutor/conversations/${conversationId}/voice-messages`, filePath);
+}
+
 function requestAudio(path, data) {
   return request({
     url: path,
@@ -186,39 +194,30 @@ function requestAudio(path, data) {
   }).then((res) => res.data);
 }
 
-function parseSseText(raw) {
-  if (!raw) return '';
-  const text = typeof raw === 'string' ? raw : String(raw);
-  let fullText = '';
-  text.split('\n').forEach((line) => {
-    if (!line.startsWith('data: ')) return;
-    const data = line.slice(6).trim();
-    if (!data || data === '[DONE]') return;
-    try {
-      const parsed = JSON.parse(data);
-      const delta = parsed && parsed.choices && parsed.choices[0] && parsed.choices[0].delta;
-      fullText += parsed && (parsed.content || parsed.text || (delta && delta.content) || '');
-    } catch (err) {
-      fullText += data;
-    }
-  });
-  return fullText || text;
+function downloadAudio(path) {
+  return request({
+    url: path,
+    method: 'GET',
+    responseType: 'arraybuffer',
+    raw: true,
+    timeout: 120000
+  }).then((res) => res.data);
 }
 
 function sendMessage(conversationId, content) {
   return request({
-    url: `/app/tutor/conversations/${conversationId}/messages`,
+    url: `/app/tutor/conversations/${conversationId}/messages/sync`,
     method: 'POST',
     data: { content },
-    raw: true,
-    timeout: 120000
-  }).then((res) => parseSseText(res.data));
+    timeout: 180000
+  });
 }
 
 module.exports = {
   request,
   uploadAudio,
   requestAudio,
+  downloadAudio,
   sendMessage,
-  parseSseText
+  sendVoiceMessage
 };

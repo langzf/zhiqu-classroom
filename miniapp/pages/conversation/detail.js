@@ -1,4 +1,10 @@
-const { request, uploadAudio, requestAudio, sendMessage } = require('../../utils/request');
+const {
+  downloadAudio,
+  request,
+  requestAudio,
+  sendMessage,
+  sendVoiceMessage
+} = require('../../utils/request');
 const { requireAuth } = require('../../utils/auth');
 
 const recorder = wx.getRecorderManager();
@@ -9,12 +15,11 @@ Page({
     id: '',
     messages: [],
     input: '',
-    loading: true,
     sending: false,
     recording: false,
-    transcribing: false,
     voiceProfileId: null,
     autoPlay: false,
+    playingMessageId: '',
     scrollIntoView: ''
   },
 
@@ -76,6 +81,8 @@ Page({
       recorder.stop();
       return;
     }
+    if (this.data.sending) return;
+
     wx.authorize({
       scope: 'scope.record',
       success: () => {
@@ -94,17 +101,37 @@ Page({
 
   async onRecordStop(res) {
     this.setData({ recording: false });
-    if (!res.tempFilePath) return;
-    this.setData({ transcribing: true });
+    if (!res.tempFilePath || this.data.sending) return;
+
+    const localVoice = {
+      id: `local-voice-${Date.now()}`,
+      role: 'user',
+      content: '语音消息',
+      metadata: {
+        message_type: 'voice',
+        audio: { url: res.tempFilePath, local: true }
+      },
+      created_at: new Date().toISOString()
+    };
+    this.setData({
+      sending: true,
+      messages: this.data.messages.concat(localVoice)
+    }, this.scrollToBottom);
+
     try {
-      const data = await uploadAudio('/app/voice/stt', res.tempFilePath);
-      if (data.text) {
-        this.setData({ input: `${this.data.input}${this.data.input ? ' ' : ''}${data.text}` });
-      }
+      const result = await sendVoiceMessage(this.data.id, res.tempFilePath);
+      const nextMessages = this.data.messages
+        .filter((item) => item.id !== localVoice.id)
+        .concat(result.user_message, result.assistant_message);
+      this.setData({ messages: nextMessages }, this.scrollToBottom);
+      this.maybeAutoPlay(result.assistant_message);
     } catch (err) {
-      wx.showToast({ title: err.message || '识别失败', icon: 'none' });
+      wx.showToast({ title: err.message || '语音发送失败', icon: 'none' });
+      this.setData({
+        messages: this.data.messages.filter((item) => item.id !== localVoice.id)
+      }, this.scrollToBottom);
     } finally {
-      this.setData({ transcribing: false });
+      this.setData({ sending: false });
     }
   },
 
@@ -116,6 +143,7 @@ Page({
       id: `local-user-${Date.now()}`,
       role: 'user',
       content: text,
+      metadata: { message_type: 'text' },
       created_at: new Date().toISOString()
     };
     this.setData({
@@ -125,51 +153,83 @@ Page({
     }, this.scrollToBottom);
 
     try {
-      const answer = await sendMessage(this.data.id, text);
-      const assistant = {
-        id: `local-ai-${Date.now()}`,
-        role: 'assistant',
-        content: answer || '我暂时没有生成回复，请稍后再试。',
-        created_at: new Date().toISOString()
-      };
-      this.setData({
-        messages: this.data.messages.concat(assistant)
-      }, this.scrollToBottom);
-      if (this.data.autoPlay) {
-        this.speak(assistant.content);
-      }
+      const result = await sendMessage(this.data.id, text);
+      const nextMessages = this.data.messages
+        .filter((item) => item.id !== userMessage.id)
+        .concat(result.user_message, result.assistant_message);
+      this.setData({ messages: nextMessages }, this.scrollToBottom);
+      this.maybeAutoPlay(result.assistant_message);
     } catch (err) {
       wx.showToast({ title: err.message || '发送失败', icon: 'none' });
-      this.setData({ input: text });
+      this.setData({
+        input: text,
+        messages: this.data.messages.filter((item) => item.id !== userMessage.id)
+      }, this.scrollToBottom);
     } finally {
       this.setData({ sending: false });
     }
   },
 
-  playText(event) {
-    this.speak(event.currentTarget.dataset.text || '');
+  playMessageAudio(event) {
+    const message = this.data.messages.find((item) => item.id === event.currentTarget.dataset.id);
+    if (!message) return;
+    this.playAudioForMessage(message);
   },
 
-  async speak(text) {
-    if (!text) return;
-    wx.showLoading({ title: '生成语音' });
+  maybeAutoPlay(message) {
+    if (this.data.autoPlay) {
+      this.playAudioForMessage(message);
+    }
+  },
+
+  async playAudioForMessage(message) {
+    const audioMeta = message.metadata && message.metadata.audio;
+    const audioUrl = audioMeta && audioMeta.url;
+    if (!audioUrl && message.role === 'assistant') {
+      return this.speakFallback(message);
+    }
+    if (!audioUrl) return;
+
+    this.setData({ playingMessageId: message.id });
+    try {
+      let filePath = audioUrl;
+      if (!audioMeta.local) {
+        const audio = await downloadAudio(audioUrl);
+        filePath = `${wx.env.USER_DATA_PATH}/message-${message.id}.mp3`;
+        wx.getFileSystemManager().writeFileSync(filePath, audio);
+      }
+      this.playLocalFile(filePath, message.id);
+    } catch (err) {
+      wx.showToast({ title: err.message || '播放失败', icon: 'none' });
+      this.setData({ playingMessageId: '' });
+    }
+  },
+
+  async speakFallback(message) {
+    if (!message.content) return;
+    this.setData({ playingMessageId: message.id });
     try {
       const audio = await requestAudio('/app/voice/tts', {
-        text,
+        text: message.content,
         voice_profile_id: this.data.voiceProfileId
       });
       const filePath = `${wx.env.USER_DATA_PATH}/speech-${Date.now()}.mp3`;
       wx.getFileSystemManager().writeFileSync(filePath, audio);
-      if (audioContext) {
-        audioContext.destroy();
-      }
-      audioContext = wx.createInnerAudioContext();
-      audioContext.src = filePath;
-      audioContext.play();
+      this.playLocalFile(filePath, message.id);
     } catch (err) {
       wx.showToast({ title: err.message || '播放失败', icon: 'none' });
-    } finally {
-      wx.hideLoading();
+      this.setData({ playingMessageId: '' });
     }
+  },
+
+  playLocalFile(filePath, messageId) {
+    if (audioContext) {
+      audioContext.destroy();
+    }
+    audioContext = wx.createInnerAudioContext();
+    audioContext.src = filePath;
+    audioContext.onEnded(() => this.setData({ playingMessageId: '' }));
+    audioContext.onError(() => this.setData({ playingMessageId: '' }));
+    audioContext.play();
   }
 });
