@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="top-row">
+    <view class="section-title">会话</view>
+    <button class="new-btn" loading="{{creating}}" bindtap="createConversation">新对话</button>
+  </view>
+
+  <view wx:if="{{loading}}" class="empty">加载中...</view>
+  <view wx:elif="{{conversations.length === 0}}" class="empty card">还没有会话，开始第一次提问吧</view>
+  <view wx:else>
+    <view wx:for="{{conversations}}" wx:key="id" class="conv card" bindtap="openConversation" data-id="{{item.id}}">
+      <view class="conv-title">{{item.title || '新对话'}}</view>
+      <view class="conv-meta">
+        <text>{{item.sceneLabel}}</text>
+        <text>{{item.timeText}}</text>
+      </view>
+    </view>
+  </view>
+</view>

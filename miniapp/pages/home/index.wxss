@@ -1,0 +1,44 @@
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #eaf2ff;
+  border-color: #d9e8ff;
+}
+
+.hero-title {
+  font-size: 40rpx;
+  font-weight: 800;
+}
+
+.hero-subtitle {
+  margin-top: 12rpx;
+  color: #667085;
+  font-size: 26rpx;
+}
+
+.hero-btn {
+  width: 132rpx;
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 28rpx;
+  border: 0;
+}
+
+.task {
+  margin-bottom: 18rpx;
+}
+
+.task-title {
+  font-weight: 700;
+  margin-bottom: 12rpx;
+}
+
+.task-meta {
+  display: flex;
+  justify-content: space-between;
+  color: #7a7f8f;
+  font-size: 24rpx;
+}

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
+import httpx
 import jwt
 import structlog
 from sqlalchemy import func as sa_func
@@ -20,7 +21,7 @@ from config import get_settings
 from shared.base_model import generate_uuid7
 from shared.exceptions import NotFoundError, ValidationError
 
-from infrastructure.persistence.models.user import GuardianBinding, User
+from infrastructure.persistence.models.user import GuardianBinding, User, UserOAuthBinding
 
 logger = structlog.get_logger(__name__)
 
@@ -92,6 +93,71 @@ class UserService:
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": 86400,
+            "user": user,
+        }
+
+    async def login_wechat_miniapp(
+        self,
+        *,
+        code: str,
+        nickname: str | None = None,
+        avatar_url: str | None = None,
+    ) -> dict:
+        """微信小程序登录：code2Session 换取 openid 后绑定或创建用户。"""
+        session = await self._code2session(code)
+        openid = session.get("openid")
+        unionid = session.get("unionid")
+        session_key = session.get("session_key")
+        if not openid:
+            raise ValidationError("微信登录失败：未返回 openid")
+
+        binding = (
+            await self.db.execute(
+                select(UserOAuthBinding).where(
+                    UserOAuthBinding.provider == "wechat_miniapp",
+                    UserOAuthBinding.provider_user_id == openid,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if binding:
+            user = await self.get_user(binding.user_id)
+            binding.access_token = session_key
+            binding.refresh_token = unionid
+        else:
+            user = User(
+                phone=None,
+                nickname=nickname or f"微信用户{openid[-6:]}",
+                avatar_url=avatar_url,
+                role="student",
+            )
+            self.db.add(user)
+            await self.db.flush()
+            binding = UserOAuthBinding(
+                user_id=user.id,
+                provider="wechat_miniapp",
+                provider_user_id=openid,
+                access_token=session_key,
+                refresh_token=unionid,
+            )
+            self.db.add(binding)
+
+        if not user.is_active:
+            raise ValidationError("账号已禁用")
+        if nickname and user.nickname != nickname:
+            user.nickname = nickname
+        if avatar_url and user.avatar_url != avatar_url:
+            user.avatar_url = avatar_url
+
+        await self.db.flush()
+        await self.db.refresh(user)
+        logger.info("wechat_miniapp.login", user_id=str(user.id), has_unionid=bool(unionid))
+
+        return {
+            "access_token": self._sign_token(user),
+            "refresh_token": self._sign_refresh_token(user),
             "token_type": "bearer",
             "expires_in": 86400,
             "user": user,
@@ -300,3 +366,27 @@ class UserService:
         stmt = select(User).where(User.phone == phone, User.deleted_at.is_(None))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def _code2session(self, code: str) -> dict:
+        settings = get_settings()
+        if not settings.wechat_miniapp_appid or not settings.wechat_miniapp_secret:
+            raise ValidationError("微信小程序 AppID/Secret 未配置")
+
+        params = {
+            "appid": settings.wechat_miniapp_appid,
+            "secret": settings.wechat_miniapp_secret,
+            "js_code": code,
+            "grant_type": "authorization_code",
+        }
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(settings.wechat_code2session_url, params=params)
+            resp.raise_for_status()
+        data = resp.json()
+        if data.get("errcode"):
+            logger.warning(
+                "wechat_miniapp.code2session_failed",
+                errcode=data.get("errcode"),
+                errmsg=data.get("errmsg"),
+            )
+            raise ValidationError(f"微信登录失败：{data.get('errmsg') or data.get('errcode')}")
+        return data

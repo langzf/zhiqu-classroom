@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     default_tts_model: str = "kokoro"
     default_tts_voice: str = "af_heart"
 
+    # WeChat Mini Program
+    wechat_miniapp_appid: str = ""
+    wechat_miniapp_secret: str = ""
+    wechat_code2session_url: str = "https://api.weixin.qq.com/sns/jscode2session"
+
     # ── SMS ──
     sms_provider: str = "mock"  # mock / aliyun
     sms_access_key: str = ""

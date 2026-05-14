@@ -103,6 +103,12 @@ class LoginRequest(OrmBase):
     )
 
 
+class WechatMiniappLoginRequest(OrmBase):
+    code: str = Field(..., min_length=1, description="wx.login 返回的临时 code")
+    nickname: Optional[str] = Field(None, max_length=50)
+    avatar_url: Optional[str] = Field(None, max_length=500)
+
+
 class TokenOut(OrmBase):
     access_token: str
     refresh_token: Optional[str] = None

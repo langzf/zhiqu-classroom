@@ -1,0 +1,45 @@
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  margin-bottom: 32rpx;
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #eaf2ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.nickname {
+  font-size: 34rpx;
+  font-weight: 800;
+  margin-bottom: 8rpx;
+}
+
+.setting-row {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid #edf0f7;
+}
+
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.logout-btn {
+  height: 88rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  color: #dc2626;
+  border: 1rpx solid #f0d7d7;
+  font-weight: 700;
+}

@@ -1,75 +1,44 @@
-# 家长端微信小程序 (miniapp)
+# 知趣课堂微信小程序
 
-> 基于 Taro 3 + React + TypeScript 的微信小程序
+这是一个独立的微信小程序前端项目，默认复用现有后端：
 
-## 技术栈
+- API: `https://zqback.yueying.cloud/api/v1`
+- 登录: 微信小程序 `wx.login` 一键登录，后端用 code2Session 绑定 openid
+- 核心能力: 学习首页、AI 会话、语音输入、语音播报、音色设置
 
-| 维度 | 选型 |
-|------|------|
-| 框架 | Taro 3 + React |
-| 语言 | TypeScript 5 |
-| UI 库 | NutUI / Taro UI |
-| 状态管理 | Zustand |
-| 构建工具 | Taro CLI |
-| 目标平台 | 微信小程序 |
+## 导入方式
 
-## 目录结构
+1. 打开微信开发者工具。
+2. 选择导入项目。
+3. 项目目录选择 `miniapp/`。
+4. AppID 当前已绑定为 `wx7b118547fd1ed80c`。
 
-```
-miniapp/
-├── src/
-│   ├── api/              # API 请求层
-│   ├── components/       # 通用组件
-│   ├── hooks/            # 自定义 Hook
-│   ├── pages/            # 页面（按路由组织）
-│   │   ├── index/        #   首页
-│   │   ├── tasks/        #   学习任务
-│   │   ├── reports/      #   学习报告
-│   │   ├── profile/      #   个人中心
-│   │   └── bind/         #   绑定学生
-│   ├── stores/           # Zustand store
-│   ├── utils/            # 工具函数
-│   ├── types/            # TypeScript 类型
-│   ├── styles/           # 全局样式
-│   ├── constants/        # 常量/枚举
-│   ├── app.ts            # 应用入口
-│   └── app.config.ts     # Taro 配置
-├── config/               # Taro 构建配置
-├── project.config.json   # 微信小程序项目配置
-├── package.json
-├── tsconfig.json
-├── DEV-GUIDE.md          # 开发规范
-└── README.md
-```
+## 域名配置
 
-## 快速开始
+开发者工具本地调试已在 `project.config.json` 中关闭 URL 校验：
 
-```bash
-# 安装依赖（项目根目录）
-pnpm install
+- `setting.urlCheck = false`
 
-# 开发模式（需要微信开发者工具打开 miniapp/dist）
-pnpm --filter miniapp dev
+这只能用于本地调试。正式预览、真机调试和发布前，需要在微信小程序后台配置合法域名。
 
-# 构建
-pnpm --filter miniapp build
-```
+操作路径：
 
-## 核心页面
+1. 微信公众平台进入当前小程序。
+2. 进入 `开发管理`。
+3. 打开 `开发设置`。
+4. 在 `服务器域名` 中配置以下域名。
 
-| 页面 | 路径 | 说明 |
-|------|------|------|
-| 首页 | `/pages/index/index` | 已绑定学生的学习概览 |
-| 任务列表 | `/pages/tasks/index` | 查看学生待完成 / 已完成任务 |
-| 任务详情 | `/pages/tasks/detail` | 单个任务完成情况 |
-| 学习报告 | `/pages/reports/index` | 周报 / 月报 |
-| 绑定学生 | `/pages/bind/index` | 通过邀请码绑定 |
-| 个人中心 | `/pages/profile/index` | 账户信息、退出登录 |
+需要配置：
 
-## 部署
+- request 合法域名: `https://zqback.yueying.cloud`
+- uploadFile 合法域名: `https://zqback.yueying.cloud`
+- downloadFile 合法域名: `https://zqback.yueying.cloud`
 
-通过微信开发者工具上传 → 提交审核 → 发布。
+注意：微信后台域名只填协议和域名，不要填写 `/api/v1` 路径。
 
----
+## 后端配置
 
-*最后更新：2026-03-25*
+后端需要配置真实小程序凭据：
+
+- `WECHAT_MINIAPP_APPID`
+- `WECHAT_MINIAPP_SECRET`

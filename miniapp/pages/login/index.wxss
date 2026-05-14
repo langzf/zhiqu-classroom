@@ -1,0 +1,64 @@
+.login-page {
+  min-height: 100vh;
+  padding: 96rpx 36rpx 36rpx;
+  box-sizing: border-box;
+  background: #eef4ff;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 56rpx;
+  text-align: center;
+}
+
+.logo {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 36rpx;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  font-weight: 900;
+  margin-bottom: 28rpx;
+}
+
+.brand-name {
+  font-size: 52rpx;
+  font-weight: 800;
+  color: #111827;
+}
+
+.brand-subtitle {
+  margin-top: 12rpx;
+  color: #667085;
+}
+
+.login-card {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  box-shadow: 0 16rpx 36rpx rgba(37, 99, 235, 0.1);
+}
+
+.wechat-btn {
+  width: 100%;
+  height: 92rpx;
+  border-radius: 16rpx;
+  background: #07c160;
+  color: #ffffff;
+  border: 0;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.hint {
+  margin-top: 22rpx;
+  color: #8a91a3;
+  font-size: 24rpx;
+  text-align: center;
+}

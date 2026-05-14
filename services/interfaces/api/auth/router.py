@@ -6,7 +6,12 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from shared.response import ok
-from interfaces.schemas.user import LoginRequest, TokenOut, RegisterRequest
+from interfaces.schemas.user import (
+    LoginRequest,
+    TokenOut,
+    RegisterRequest,
+    WechatMiniappLoginRequest,
+)
 from interfaces.api.deps import UserSvc
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -15,6 +20,16 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 @router.post("/login", summary="学生端登录（手机号，不存在自动注册）")
 async def login(body: LoginRequest, svc: UserSvc):
     tokens = await svc.login(phone=body.phone, require_admin=False)
+    return ok(TokenOut(**tokens).model_dump())
+
+
+@router.post("/wechat/miniapp/login", summary="微信小程序登录")
+async def login_wechat_miniapp(body: WechatMiniappLoginRequest, svc: UserSvc):
+    tokens = await svc.login_wechat_miniapp(
+        code=body.code,
+        nickname=body.nickname,
+        avatar_url=body.avatar_url,
+    )
     return ok(TokenOut(**tokens).model_dump())
 
 

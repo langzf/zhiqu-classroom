@@ -1,0 +1,25 @@
+<view class="conversation-page">
+  <scroll-view class="message-list" scroll-y scroll-into-view="{{scrollIntoView}}">
+    <view wx:if="{{messages.length === 0}}" class="empty">发一条消息开始学习</view>
+    <view wx:for="{{messages}}" wx:key="id" id="msg-{{index}}" class="message {{item.role === 'user' ? 'user' : 'assistant'}}">
+      <view class="bubble">
+        <view class="role-row">
+          <text>{{item.role === 'user' ? '我' : 'AI'}}</text>
+          <button wx:if="{{item.role === 'assistant'}}" class="speak-btn" data-text="{{item.content}}" bindtap="playText">播放</button>
+        </view>
+        <view class="content">{{item.content}}</view>
+      </view>
+    </view>
+    <view wx:if="{{sending}}" class="message assistant">
+      <view class="bubble muted">AI 正在思考...</view>
+    </view>
+  </scroll-view>
+
+  <view class="input-bar">
+    <button class="record-btn {{recording ? 'recording' : ''}}" bindtap="toggleRecord" disabled="{{sending || transcribing}}">
+      {{recording ? '停' : transcribing ? '转' : '麦'}}
+    </button>
+    <textarea class="text-input" auto-height maxlength="1000" placeholder="{{transcribing ? '正在识别语音...' : '输入问题'}}" value="{{input}}" bindinput="onInput" disabled="{{sending}}" />
+    <button class="send-btn" loading="{{sending}}" disabled="{{sending || !input}}" bindtap="send">发送</button>
+  </view>
+</view>

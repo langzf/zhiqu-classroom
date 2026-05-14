@@ -1,0 +1,33 @@
+.top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.new-btn {
+  height: 68rpx;
+  min-width: 140rpx;
+  border-radius: 999rpx;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 26rpx;
+  border: 0;
+}
+
+.conv {
+  margin-bottom: 18rpx;
+}
+
+.conv-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 12rpx;
+}
+
+.conv-meta {
+  display: flex;
+  justify-content: space-between;
+  color: #7a7f8f;
+  font-size: 24rpx;
+}

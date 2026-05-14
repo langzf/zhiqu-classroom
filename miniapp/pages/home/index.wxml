@@ -1,0 +1,24 @@
+<view class="page">
+  <view class="hero card">
+    <view>
+      <view class="hero-title">今天想学点什么？</view>
+      <view class="hero-subtitle">可以从任务开始，也可以直接问 AI 助教。</view>
+    </view>
+    <button class="hero-btn" bindtap="goChat">提问</button>
+  </view>
+
+  <view class="section">
+    <view class="section-title">学习任务</view>
+    <view wx:if="{{loading}}" class="empty">加载中...</view>
+    <view wx:elif="{{tasks.length === 0}}" class="empty card">暂无学习任务</view>
+    <view wx:else>
+      <view wx:for="{{tasks}}" wx:key="id" class="task card">
+        <view class="task-title">{{item.title}}</view>
+        <view class="task-meta">
+          <text>{{item.status}}</text>
+          <text wx:if="{{item.hasProgress}}">{{item.progress_pct}}%</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
