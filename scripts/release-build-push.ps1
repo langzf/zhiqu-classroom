@@ -15,6 +15,9 @@ function Invoke-Step {
   Write-Host ""
   Write-Host "==> $Title" -ForegroundColor Cyan
   & $Action
+  if ($LASTEXITCODE -ne 0) {
+    throw "Step failed: $Title"
+  }
 }
 
 if (-not $Tag) {

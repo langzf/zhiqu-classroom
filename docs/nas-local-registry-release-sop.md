@@ -32,6 +32,14 @@ cd /home/18457113512/zhiqu-classroom
 bash scripts/nas-registry-init.sh
 ```
 
+This script also adds the NAS registry to Docker daemon `insecure-registries`:
+
+```json
+["192.168.1.6:5000", "127.0.0.1:5000", "localhost:5000"]
+```
+
+It restarts Docker when the daemon config changes, then starts the registry container again.
+
 Expected health:
 
 ```bash
@@ -114,8 +122,8 @@ REGISTRY_HOST=192.168.1.6:5000 IMAGE_TAG=<tag> bash scripts/nas-deploy-registry.
 This uses:
 
 ```bash
-docker compose -f docker-compose.yml -f deploy/docker-compose.registry.yml pull backend app admin
-docker compose -f docker-compose.yml -f deploy/docker-compose.registry.yml up -d backend app admin
+docker compose -f docker-compose.yml -f deploy/docker-compose.registry.yml pull --ignore-buildable backend app admin
+docker compose -f docker-compose.yml -f deploy/docker-compose.registry.yml up -d --no-build backend app admin
 ```
 
 Infrastructure services still use upstream images:
@@ -173,6 +181,10 @@ If NAS pull fails, check registry health:
 curl http://127.0.0.1:5000/v2/
 sudo docker ps --filter name=zhiqu-registry
 ```
+
+If NAS pull fails with `http: server gave HTTP response to HTTPS client`,
+run `bash scripts/nas-registry-init.sh` once on NAS, or verify `/etc/docker/daemon.json`
+contains `192.168.1.6:5000` under `insecure-registries`, then restart Docker.
 
 If the NAS repository is behind GitHub because NAS network is down, registry deployment can still work
 as long as `docker-compose.yml`, `deploy/docker-compose.registry.yml`, and the deploy scripts already exist on NAS.
