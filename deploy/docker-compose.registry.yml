@@ -1,0 +1,12 @@
+services:
+  backend:
+    image: ${REGISTRY_HOST:-192.168.1.6:5000}/zhiqu-backend:${IMAGE_TAG:-latest}
+    build: null
+
+  app:
+    image: ${REGISTRY_HOST:-192.168.1.6:5000}/zhiqu-app:${IMAGE_TAG:-latest}
+    build: null
+
+  admin:
+    image: ${REGISTRY_HOST:-192.168.1.6:5000}/zhiqu-admin:${IMAGE_TAG:-latest}
+    build: null
