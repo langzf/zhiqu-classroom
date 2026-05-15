@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import structlog
+from shared.logging import report_trace_event
 
 logger = structlog.get_logger()
 
@@ -65,6 +66,15 @@ def register_exception_handlers(app: FastAPI) -> None:
             message=exc.message,
             path=str(request.url),
         )
+        report_trace_event(
+            level="error" if exc.status_code >= 500 else "warn",
+            message="app_error",
+            path=request.url.path,
+            method=request.method,
+            status_code=exc.status_code,
+            error=exc,
+            meta={"code": exc.code, "requestUrl": str(request.url)},
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content={"code": exc.code, "message": exc.message, "data": None},
@@ -77,6 +87,15 @@ def register_exception_handlers(app: FastAPI) -> None:
             path=str(request.url),
             error=str(exc),
             exc_info=True,
+        )
+        report_trace_event(
+            level="error",
+            message="unhandled_error",
+            path=request.url.path,
+            method=request.method,
+            status_code=500,
+            error=exc,
+            meta={"requestUrl": str(request.url)},
         )
         return JSONResponse(
             status_code=500,

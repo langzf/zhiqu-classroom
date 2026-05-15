@@ -225,6 +225,7 @@ def configure_logging(*, debug: bool = False, log_dir: str | None = None) -> Non
 _SKIP_PATHS = frozenset({"/health", "/", "/favicon.ico"})
 
 _access_logger = structlog.get_logger("http.access")
+_default_trace_reporter: "TraceLogReporter | None" = None
 
 
 class TraceLogReporter:
@@ -384,6 +385,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             service_name=trace_service_name,
             enabled=trace_enabled,
         )
+        global _default_trace_reporter
+        _default_trace_reporter = self.trace_reporter
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
@@ -476,3 +479,30 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         )
 
         return response
+
+
+def report_trace_event(
+    *,
+    level: str,
+    message: str,
+    path: str | None = None,
+    method: str | None = None,
+    status_code: int | None = None,
+    error: BaseException | None = None,
+    meta: dict[str, Any] | None = None,
+) -> None:
+    """Emit a business-level trace event without interrupting the request."""
+    reporter = _default_trace_reporter
+    if reporter is None:
+        return
+    reporter.report(
+        level=level,
+        message=message,
+        trace_id=trace_id_var.get("") or generate_trace_id(),
+        span_id=span_id_var.get("") or generate_span_id(),
+        path=path,
+        method=method,
+        status_code=status_code,
+        error=error,
+        meta=meta,
+    )

@@ -18,6 +18,31 @@ function unwrap(body) {
   return body.data;
 }
 
+function parseResponseBody(data) {
+  if (data && typeof data === 'object') return data;
+  if (typeof data !== 'string' || !data) return null;
+  try {
+    return JSON.parse(data);
+  } catch (err) {
+    return null;
+  }
+}
+
+function responseSnippet(data) {
+  if (typeof data === 'string') return data.slice(0, 500);
+  try {
+    return JSON.stringify(data || {}).slice(0, 500);
+  } catch (err) {
+    return '';
+  }
+}
+
+function errorMessage(prefix, statusCode, data) {
+  const body = parseResponseBody(data);
+  if (body && body.message) return body.message;
+  return `${prefix} ${statusCode}`;
+}
+
 function elapsedMs(startedAt) {
   return Date.now() - startedAt;
 }
@@ -75,7 +100,18 @@ function request(options) {
           return;
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`请求失败 ${res.statusCode}`));
+          reportTraceLog(res.statusCode >= 500 ? 'error' : 'warn', 'miniapp request non-2xx', {
+            traceContext,
+            path: options.url,
+            method,
+            statusCode: res.statusCode,
+            durationMs: elapsedMs(startedAt),
+            meta: {
+              requestUrl: url,
+              responseBody: responseSnippet(res.data)
+            }
+          });
+          reject(new Error(errorMessage('请求失败', res.statusCode, res.data)));
           return;
         }
         try {
@@ -139,7 +175,18 @@ function uploadFile(path, filePath, options) {
           return;
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`上传失败 ${res.statusCode}`));
+          reportTraceLog(res.statusCode >= 500 ? 'error' : 'warn', 'miniapp upload non-2xx', {
+            traceContext,
+            path,
+            method: 'POST',
+            statusCode: res.statusCode,
+            durationMs: elapsedMs(startedAt),
+            meta: {
+              requestUrl: url,
+              responseBody: responseSnippet(res.data)
+            }
+          });
+          reject(new Error(errorMessage('上传失败', res.statusCode, res.data)));
           return;
         }
         try {

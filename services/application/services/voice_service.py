@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Optional
+from urllib.parse import urlparse
 from uuid import UUID
 
 import httpx
@@ -11,9 +12,26 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.persistence.models.voice import UserVoiceSetting, VoiceProfile
-from shared.exceptions import NotFoundError, ValidationError
+from shared.exceptions import BusinessError, NotFoundError, ValidationError
+from shared.logging import report_trace_event
 
 log = structlog.get_logger(__name__)
+
+
+def _with_default_path(base_url: str, default_path: str) -> str:
+    parsed = urlparse(base_url)
+    if parsed.path and parsed.path != "/":
+        return base_url
+    return base_url.rstrip("/") + default_path
+
+
+def _response_snippet(response: httpx.Response | None, limit: int = 500) -> str:
+    if response is None:
+        return ""
+    try:
+        return response.text[:limit]
+    except Exception:
+        return ""
 
 
 class VoiceService:
@@ -127,9 +145,90 @@ class VoiceService:
         if not audio:
             raise ValidationError("empty audio file")
         files = {"file": (filename or "recording.wav", audio, content_type or "audio/wav")}
+        data = {
+            "temperature": "0.0",
+            "response_format": "json",
+        }
+        url = _with_default_path(self.settings.stt_service_url, "/inference")
+        report_trace_event(
+            level="info",
+            message="voice_stt_request_start",
+            path=urlparse(url).path,
+            method="POST",
+            meta={
+                "voiceService": "stt",
+                "filename": filename,
+                "contentType": content_type,
+                "audioBytes": len(audio),
+                "targetHost": urlparse(url).netloc,
+            },
+        )
         async with httpx.AsyncClient(timeout=90) as client:
-            resp = await client.post(self.settings.stt_service_url, files=files)
-            resp.raise_for_status()
+            try:
+                resp = await client.post(url, data=data, files=files)
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                log.error(
+                    "voice_stt_http_failed",
+                    url=url,
+                    status_code=exc.response.status_code,
+                    response_body=_response_snippet(exc.response),
+                    filename=filename,
+                    content_type=content_type,
+                    audio_bytes=len(audio),
+                    exc_info=True,
+                )
+                report_trace_event(
+                    level="error",
+                    message="voice_stt_http_failed",
+                    path=urlparse(url).path,
+                    method="POST",
+                    status_code=exc.response.status_code,
+                    error=exc,
+                    meta={
+                        "voiceService": "stt",
+                        "targetHost": urlparse(url).netloc,
+                        "responseBody": _response_snippet(exc.response),
+                        "audioBytes": len(audio),
+                    },
+                )
+                raise BusinessError("voice transcription service failed", status_code=502) from exc
+            except httpx.HTTPError as exc:
+                log.error(
+                    "voice_stt_request_failed",
+                    url=url,
+                    filename=filename,
+                    content_type=content_type,
+                    audio_bytes=len(audio),
+                    error=str(exc),
+                    exc_info=True,
+                )
+                report_trace_event(
+                    level="error",
+                    message="voice_stt_request_failed",
+                    path=urlparse(url).path,
+                    method="POST",
+                    error=exc,
+                    meta={
+                        "voiceService": "stt",
+                        "targetHost": urlparse(url).netloc,
+                        "audioBytes": len(audio),
+                    },
+                )
+                raise BusinessError("voice transcription service unavailable", status_code=502) from exc
+
+        report_trace_event(
+            level="info",
+            message="voice_stt_request_success",
+            path=urlparse(url).path,
+            method="POST",
+            status_code=resp.status_code,
+            meta={
+                "voiceService": "stt",
+                "targetHost": urlparse(url).netloc,
+                "contentType": resp.headers.get("content-type", ""),
+            },
+        )
         content_type = resp.headers.get("content-type", "")
         if "application/json" in content_type:
             data = resp.json()
@@ -152,15 +251,17 @@ class VoiceService:
     async def _resolve_profile(self, profile_id: UUID | str | None) -> VoiceProfile:
         if profile_id:
             return await self.get_profile(profile_id)
-        row = (
-            await self.db.execute(
-                select(VoiceProfile).where(
-                    VoiceProfile.is_active.is_(True),
-                    VoiceProfile.deleted_at.is_(None),
-                    VoiceProfile.provider == "tts",
-                ).order_by(VoiceProfile.sort_order, VoiceProfile.created_at.desc())
+        stmt = (
+            select(VoiceProfile)
+            .where(
+                VoiceProfile.is_active.is_(True),
+                VoiceProfile.deleted_at.is_(None),
+                VoiceProfile.provider == "tts",
             )
-        ).scalar_one_or_none()
+            .order_by(VoiceProfile.sort_order, VoiceProfile.created_at.desc())
+            .limit(1)
+        )
+        row = (await self.db.execute(stmt)).scalars().first()
         if not row:
             raise NotFoundError("voice_profile")
         return row
@@ -171,10 +272,84 @@ class VoiceService:
             "input": text,
             "voice": profile.voice_key or self.settings.default_tts_voice,
         }
-        url = self.settings.tts_service_url.rstrip("/") + "/v1/audio/speech"
+        url = _with_default_path(self.settings.tts_service_url, "/v1/audio/speech")
+        report_trace_event(
+            level="info",
+            message="voice_tts_request_start",
+            path=urlparse(url).path,
+            method="POST",
+            meta={
+                "voiceService": "tts",
+                "provider": profile.provider,
+                "voiceProfileId": str(profile.id),
+                "voiceKey": profile.voice_key,
+                "textLength": len(text),
+                "targetHost": urlparse(url).netloc,
+            },
+        )
         async with httpx.AsyncClient(timeout=90) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
+            try:
+                resp = await client.post(url, json=payload)
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                log.error(
+                    "voice_tts_http_failed",
+                    url=url,
+                    status_code=exc.response.status_code,
+                    response_body=_response_snippet(exc.response),
+                    profile_id=str(profile.id),
+                    exc_info=True,
+                )
+                report_trace_event(
+                    level="error",
+                    message="voice_tts_http_failed",
+                    path=urlparse(url).path,
+                    method="POST",
+                    status_code=exc.response.status_code,
+                    error=exc,
+                    meta={
+                        "voiceService": "tts",
+                        "targetHost": urlparse(url).netloc,
+                        "voiceProfileId": str(profile.id),
+                        "responseBody": _response_snippet(exc.response),
+                    },
+                )
+                raise BusinessError("speech synthesis service failed", status_code=502) from exc
+            except httpx.HTTPError as exc:
+                log.error(
+                    "voice_tts_request_failed",
+                    url=url,
+                    profile_id=str(profile.id),
+                    error=str(exc),
+                    exc_info=True,
+                )
+                report_trace_event(
+                    level="error",
+                    message="voice_tts_request_failed",
+                    path=urlparse(url).path,
+                    method="POST",
+                    error=exc,
+                    meta={
+                        "voiceService": "tts",
+                        "targetHost": urlparse(url).netloc,
+                        "voiceProfileId": str(profile.id),
+                    },
+                )
+                raise BusinessError("speech synthesis service unavailable", status_code=502) from exc
+        report_trace_event(
+            level="info",
+            message="voice_tts_request_success",
+            path=urlparse(url).path,
+            method="POST",
+            status_code=resp.status_code,
+            meta={
+                "voiceService": "tts",
+                "targetHost": urlparse(url).netloc,
+                "voiceProfileId": str(profile.id),
+                "contentType": resp.headers.get("content-type", ""),
+                "audioBytes": len(resp.content),
+            },
+        )
         return resp.content, resp.headers.get("content-type", "audio/mpeg")
 
     async def _openvoice(self, text: str, profile: VoiceProfile) -> tuple[bytes, str]:
@@ -188,7 +363,39 @@ class VoiceService:
             )
         }
         data = {"text": text}
+        url = _with_default_path(self.settings.openvoice_service_url, "/")
         async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(self.settings.openvoice_service_url, data=data, files=files)
-            resp.raise_for_status()
+            try:
+                resp = await client.post(url, data=data, files=files)
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                report_trace_event(
+                    level="error",
+                    message="voice_openvoice_http_failed",
+                    path=urlparse(url).path,
+                    method="POST",
+                    status_code=exc.response.status_code,
+                    error=exc,
+                    meta={
+                        "voiceService": "openvoice",
+                        "targetHost": urlparse(url).netloc,
+                        "voiceProfileId": str(profile.id),
+                        "responseBody": _response_snippet(exc.response),
+                    },
+                )
+                raise BusinessError("openvoice synthesis service failed", status_code=502) from exc
+            except httpx.HTTPError as exc:
+                report_trace_event(
+                    level="error",
+                    message="voice_openvoice_request_failed",
+                    path=urlparse(url).path,
+                    method="POST",
+                    error=exc,
+                    meta={
+                        "voiceService": "openvoice",
+                        "targetHost": urlparse(url).netloc,
+                        "voiceProfileId": str(profile.id),
+                    },
+                )
+                raise BusinessError("openvoice synthesis service unavailable", status_code=502) from exc
         return resp.content, resp.headers.get("content-type", "audio/mpeg")

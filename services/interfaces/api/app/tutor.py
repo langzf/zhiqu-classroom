@@ -13,7 +13,8 @@ from fastapi.responses import Response, StreamingResponse
 from infrastructure.external.minio_client import download_file, upload_file
 from infrastructure.persistence.models import Message
 from shared.response import ok, paged
-from shared.exceptions import ForbiddenError, ValidationError
+from shared.exceptions import BusinessError, ForbiddenError, NotFoundError, ValidationError
+from shared.logging import report_trace_event
 from interfaces.schemas.tutor import (
     ConversationCreate, ConversationUpdate, ConversationOut,
     MessageSend, MessageOut, FeedbackCreate,
@@ -79,6 +80,18 @@ async def _cache_assistant_tts(message: Message, user_id: str, voice_svc: VoiceS
             user_id=user_id,
             error=str(exc),
             exc_info=True,
+        )
+        report_trace_event(
+            level="error",
+            message="assistant_tts_cache_failed",
+            path="/api/v1/app/tutor/conversations/{conv_id}/messages/sync",
+            method="POST",
+            error=exc,
+            meta={
+                "messageId": str(message.id),
+                "userId": user_id,
+                "ttsStatus": "failed",
+            },
         )
 
 
@@ -178,20 +191,74 @@ async def send_voice_message(
         raise ValidationError("empty audio file")
 
     content_type = file.content_type or "audio/mpeg"
+    filename = file.filename or "recording.mp3"
+    report_trace_event(
+        level="info",
+        message="voice_message_upload_received",
+        path=f"/api/v1/app/tutor/conversations/{conv_id}/voice-messages",
+        method="POST",
+        meta={
+            "conversationId": str(conv_id),
+            "userId": user.sub,
+            "filename": filename,
+            "contentType": content_type,
+            "audioBytes": len(audio),
+        },
+    )
     object_name = (
         f"tutor/conversations/{conv_id}/voice-input/"
-        f"{PurePath(file.filename or 'recording.mp3').stem}-{len(audio)}"
-        f"{_audio_extension(file.filename, content_type)}"
+        f"{PurePath(filename).stem}-{len(audio)}"
+        f"{_audio_extension(filename, content_type)}"
     )
-    await upload_file(object_name, audio, content_type)
+    try:
+        await upload_file(object_name, audio, content_type)
+    except Exception as exc:
+        log.error(
+            "voice_message_audio_upload_failed",
+            conversation_id=str(conv_id),
+            user_id=user.sub,
+            object_name=object_name,
+            content_type=content_type,
+            audio_bytes=len(audio),
+            error=str(exc),
+            exc_info=True,
+        )
+        report_trace_event(
+            level="error",
+            message="voice_message_audio_upload_failed",
+            path=f"/api/v1/app/tutor/conversations/{conv_id}/voice-messages",
+            method="POST",
+            error=exc,
+            meta={
+                "conversationId": str(conv_id),
+                "userId": user.sub,
+                "objectName": object_name,
+                "contentType": content_type,
+                "audioBytes": len(audio),
+            },
+        )
+        raise BusinessError("voice audio storage failed", status_code=502) from exc
 
     transcript = await voice_svc.transcribe(
-        filename=file.filename or "recording.mp3",
+        filename=filename,
         content_type=content_type,
         audio=audio,
     )
     transcript = (transcript or "").strip()
     if not transcript:
+        report_trace_event(
+            level="warn",
+            message="voice_message_transcript_empty",
+            path=f"/api/v1/app/tutor/conversations/{conv_id}/voice-messages",
+            method="POST",
+            status_code=422,
+            meta={
+                "conversationId": str(conv_id),
+                "userId": user.sub,
+                "objectName": object_name,
+                "audioBytes": len(audio),
+            },
+        )
         raise ValidationError("voice transcript is empty")
 
     user_metadata = {
@@ -201,9 +268,21 @@ async def send_voice_message(
             "source": "user_upload",
             "object_name": object_name,
             "content_type": content_type,
-            "filename": file.filename or "recording.mp3",
+            "filename": filename,
         },
     }
+    report_trace_event(
+        level="info",
+        message="voice_message_transcript_ready",
+        path=f"/api/v1/app/tutor/conversations/{conv_id}/voice-messages",
+        method="POST",
+        meta={
+            "conversationId": str(conv_id),
+            "userId": user.sub,
+            "objectName": object_name,
+            "transcriptLength": len(transcript),
+        },
+    )
     user_msg, assistant_msg = await svc.send_and_reply(
         conversation_id=str(conv_id),
         content=transcript,
@@ -232,7 +311,31 @@ async def get_message_audio(message_id: UUID, user: CurrentUser, svc: TutorSvc):
     if not isinstance(audio_meta, dict) or not audio_meta.get("object_name"):
         raise ValidationError("message has no audio")
 
-    audio = await download_file(audio_meta["object_name"])
+    try:
+        audio = await download_file(audio_meta["object_name"])
+    except Exception as exc:
+        log.error(
+            "message_audio_download_failed",
+            message_id=str(message_id),
+            user_id=user.sub,
+            object_name=audio_meta.get("object_name"),
+            error=str(exc),
+            exc_info=True,
+        )
+        report_trace_event(
+            level="error",
+            message="message_audio_download_failed",
+            path=f"/api/v1/app/tutor/messages/{message_id}/audio",
+            method="GET",
+            error=exc,
+            meta={
+                "messageId": str(message_id),
+                "userId": user.sub,
+                "objectName": audio_meta.get("object_name"),
+                "audioSource": audio_meta.get("source"),
+            },
+        )
+        raise NotFoundError("message_audio", str(message_id)) from exc
     return Response(content=audio, media_type=audio_meta.get("content_type") or "audio/mpeg")
 
 
