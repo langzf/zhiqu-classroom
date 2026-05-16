@@ -190,10 +190,15 @@
   width: 48rpx;
   height: 48rpx;
   background: #eef5ff;
+  flex-shrink: 0;
 }
 
 .speak-btn.playing {
   background: #dbeafe;
+}
+
+.speak-btn[disabled] {
+  opacity: 1;
 }
 
 .speaker-glyph {
@@ -350,18 +355,20 @@
 
 .mic-glyph {
   position: relative;
-  width: 30rpx;
-  height: 38rpx;
+  width: 36rpx;
+  height: 42rpx;
+  flex-shrink: 0;
 }
 
 .mic-head {
   position: absolute;
-  left: 7rpx;
+  left: 50%;
   top: 0;
-  width: 16rpx;
-  height: 24rpx;
-  border-radius: 10rpx;
+  width: 18rpx;
+  height: 26rpx;
+  border-radius: 12rpx;
   background: currentColor;
+  transform: translateX(-50%);
 }
 
 .mic-head::after {
@@ -377,34 +384,37 @@
 
 .mic-stem {
   position: absolute;
-  left: 5rpx;
-  top: 12rpx;
-  width: 20rpx;
-  height: 18rpx;
+  left: 50%;
+  top: 13rpx;
+  width: 28rpx;
+  height: 20rpx;
   border: 4rpx solid currentColor;
   border-top: 0;
-  border-radius: 0 0 16rpx 16rpx;
+  border-radius: 0 0 18rpx 18rpx;
+  transform: translateX(-50%);
 }
 
 .mic-base {
   position: absolute;
-  left: 13rpx;
+  left: 50%;
   bottom: 0;
   width: 4rpx;
-  height: 11rpx;
+  height: 10rpx;
   background: currentColor;
   border-radius: 4rpx;
+  transform: translateX(-50%);
 }
 
 .mic-base::after {
   content: "";
   position: absolute;
-  left: -8rpx;
+  left: 50%;
   bottom: 0;
-  width: 20rpx;
+  width: 22rpx;
   height: 4rpx;
   border-radius: 4rpx;
   background: currentColor;
+  transform: translateX(-50%);
 }
 
 .text-input {
@@ -420,6 +430,14 @@
   line-height: 1.45;
 }
 
+.composer-actions {
+  width: 72rpx;
+  min-width: 72rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
 .send-btn {
   background: #e5e7eb;
   color: #9ca3af;
@@ -430,9 +448,44 @@
   color: #ffffff;
 }
 
+.send-btn.sending {
+  background: #111827;
+  color: #ffffff;
+  opacity: 1;
+}
+
 .send-arrow {
   font-size: 40rpx;
   line-height: 1;
   font-weight: 800;
   transform: translateY(-2rpx);
+}
+
+.send-spinner,
+.mini-spinner {
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.82s linear infinite;
+}
+
+.send-spinner {
+  width: 30rpx;
+  height: 30rpx;
+  border-width: 4rpx;
+}
+
+.mini-spinner {
+  width: 24rpx;
+  height: 24rpx;
+  border-width: 3rpx;
+  color: #2563eb;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

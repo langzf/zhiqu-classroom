@@ -11,8 +11,9 @@
       <view class="bubble {{item.metadata && item.metadata.message_type === 'voice' ? 'voice-bubble' : ''}}">
         <view wx:if="{{item.role === 'assistant'}}" class="assistant-tools">
           <text class="assistant-name">AI 助教</text>
-          <button class="icon-btn speak-btn {{playingMessageId === item.id ? 'playing' : ''}}" data-id="{{item.id}}" bindtap="playMessageAudio" aria-label="播放语音">
-            <view class="speaker-glyph">
+          <button class="icon-btn speak-btn {{playingMessageId === item.id ? 'playing' : ''}}" data-id="{{item.id}}" bindtap="playMessageAudio" disabled="{{audioLoadingMessageId === item.id}}" aria-label="播放语音">
+            <view wx:if="{{audioLoadingMessageId === item.id}}" class="mini-spinner"></view>
+            <view wx:else class="speaker-glyph">
               <view class="speaker-core"></view>
               <view class="speaker-wave wave-one"></view>
               <view class="speaker-wave wave-two"></view>
@@ -60,9 +61,12 @@
         </view>
       </button>
       <textarea class="text-input" auto-height maxlength="1000" placeholder="问点什么" value="{{input}}" bindinput="onInput" disabled="{{sending}}" />
-      <button class="icon-btn send-btn {{input ? 'active' : ''}}" loading="{{sending}}" disabled="{{sending || !input}}" bindtap="send" aria-label="发送">
-        <text class="send-arrow">↑</text>
-      </button>
+      <view class="composer-actions">
+        <button class="icon-btn send-btn {{input ? 'active' : ''}} {{sending ? 'sending' : ''}}" disabled="{{sending || !input}}" bindtap="send" aria-label="发送">
+          <view wx:if="{{sending}}" class="send-spinner"></view>
+          <text wx:else class="send-arrow">↑</text>
+        </button>
+      </view>
     </view>
   </view>
 </view>

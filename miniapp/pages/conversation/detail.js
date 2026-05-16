@@ -6,6 +6,7 @@ const {
   sendVoiceMessage
 } = require('../../utils/request');
 const { requireAuth } = require('../../utils/auth');
+const { reportTraceLog } = require('../../utils/trace');
 
 const recorder = wx.getRecorderManager();
 let audioContext = null;
@@ -20,6 +21,7 @@ Page({
     voiceProfileId: null,
     autoPlay: false,
     playingMessageId: '',
+    audioLoadingMessageId: '',
     scrollIntoView: ''
   },
 
@@ -171,7 +173,16 @@ Page({
   },
 
   playMessageAudio(event) {
-    const message = this.data.messages.find((item) => item.id === event.currentTarget.dataset.id);
+    const messageId = event.currentTarget.dataset.id || event.target.dataset.id;
+    if (this.data.playingMessageId === messageId && audioContext) {
+      audioContext.stop();
+      audioContext.destroy();
+      audioContext = null;
+      this.setData({ playingMessageId: '', audioLoadingMessageId: '' });
+      return;
+    }
+
+    const message = this.data.messages.find((item) => item.id === messageId);
     if (!message) return;
     this.playAudioForMessage(message);
   },
@@ -190,7 +201,7 @@ Page({
     }
     if (!audioUrl) return;
 
-    this.setData({ playingMessageId: message.id });
+    this.setData({ playingMessageId: message.id, audioLoadingMessageId: message.id });
     try {
       let filePath = audioUrl;
       if (!audioMeta.local) {
@@ -201,13 +212,24 @@ Page({
       this.playLocalFile(filePath, message.id);
     } catch (err) {
       wx.showToast({ title: err.message || '播放失败', icon: 'none' });
-      this.setData({ playingMessageId: '' });
+      reportTraceLog('error', 'miniapp message audio playback prepare failed', {
+        path: '/pages/conversation/detail',
+        method: 'PLAY',
+        error: err,
+        meta: {
+          messageId: message.id,
+          hasAudioUrl: !!audioUrl,
+          audioUrl,
+          audioSource: audioMeta && audioMeta.source
+        }
+      });
+      this.setData({ playingMessageId: '', audioLoadingMessageId: '' });
     }
   },
 
   async speakFallback(message) {
     if (!message.content) return;
-    this.setData({ playingMessageId: message.id });
+    this.setData({ playingMessageId: message.id, audioLoadingMessageId: message.id });
     try {
       const audio = await requestAudio('/app/voice/tts', {
         text: message.content,
@@ -218,7 +240,17 @@ Page({
       this.playLocalFile(filePath, message.id);
     } catch (err) {
       wx.showToast({ title: err.message || '播放失败', icon: 'none' });
-      this.setData({ playingMessageId: '' });
+      reportTraceLog('error', 'miniapp assistant tts fallback failed', {
+        path: '/pages/conversation/detail',
+        method: 'PLAY',
+        error: err,
+        meta: {
+          messageId: message.id,
+          textLength: message.content.length,
+          voiceProfileId: this.data.voiceProfileId
+        }
+      });
+      this.setData({ playingMessageId: '', audioLoadingMessageId: '' });
     }
   },
 
@@ -228,8 +260,29 @@ Page({
     }
     audioContext = wx.createInnerAudioContext();
     audioContext.src = filePath;
-    audioContext.onEnded(() => this.setData({ playingMessageId: '' }));
-    audioContext.onError(() => this.setData({ playingMessageId: '' }));
+    audioContext.onCanplay(() => {
+      this.setData({ audioLoadingMessageId: '' });
+    });
+    audioContext.onPlay(() => {
+      this.setData({ playingMessageId: messageId, audioLoadingMessageId: '' });
+    });
+    audioContext.onEnded(() => this.setData({ playingMessageId: '', audioLoadingMessageId: '' }));
+    audioContext.onStop(() => this.setData({ playingMessageId: '', audioLoadingMessageId: '' }));
+    audioContext.onError((err) => {
+      reportTraceLog('error', 'miniapp inner audio playback failed', {
+        path: '/pages/conversation/detail',
+        method: 'PLAY',
+        error: err,
+        meta: {
+          messageId,
+          filePath,
+          errMsg: err && err.errMsg,
+          errCode: err && err.errCode
+        }
+      });
+      wx.showToast({ title: '播放失败', icon: 'none' });
+      this.setData({ playingMessageId: '', audioLoadingMessageId: '' });
+    });
     audioContext.play();
   }
 });
