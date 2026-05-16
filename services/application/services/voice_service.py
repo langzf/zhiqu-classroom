@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional
 from urllib.parse import urlparse
 from uuid import UUID
+import re
 
 import httpx
 import structlog
@@ -32,6 +33,26 @@ def _response_snippet(response: httpx.Response | None, limit: int = 500) -> str:
         return response.text[:limit]
     except Exception:
         return ""
+
+
+def _prepare_speech_text(text: str) -> str:
+    value = (text or "").strip()
+    value = re.sub(r"[*_`#>\[\]]", "", value)
+    value = re.sub(r"\([^()\u4e00-\u9fff]*[\u4e00-\u9fff][^()]*\)", "", value)
+    value = re.sub(r"[\U00010000-\U0010ffff]", "", value)
+    chinese_count = sum(1 for ch in value if "\u4e00" <= ch <= "\u9fff")
+    if chinese_count:
+        lines = []
+        for line in re.split(r"[\r\n]+", value):
+            ascii_alpha_count = sum(1 for ch in line if ch.isascii() and ch.isalpha())
+            line_chinese_count = sum(1 for ch in line if "\u4e00" <= ch <= "\u9fff")
+            if line_chinese_count or ascii_alpha_count <= 12:
+                lines.append(line)
+        value = " ".join(lines).strip() or value
+        value = re.sub(r"\b[A-Za-z][A-Za-z0-9' -]{14,}[.!?]?", "", value)
+        value = re.sub(r"\b[A-Za-z]{2,}\b", "", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value[:1800] or text
 
 
 class VoiceService:
@@ -244,6 +265,7 @@ class VoiceService:
 
     async def synthesize(self, *, text: str, profile_id: UUID | str | None = None) -> tuple[bytes, str]:
         profile = await self._resolve_profile(profile_id)
+        text = _prepare_speech_text(text)
         if profile.provider == "openvoice":
             return await self._openvoice(text, profile)
         return await self._tts(text, profile)

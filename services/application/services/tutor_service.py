@@ -48,8 +48,8 @@ def _detect_response_language(text: str | None) -> str:
     return "zh-CN"
 
 
-def _language_instruction(text: str | None) -> str:
-    language = _detect_response_language(text)
+def _language_instruction(text: str | None, forced_language: str | None = None) -> str:
+    language = forced_language or _detect_response_language(text)
     if language == "en-US":
         return (
             "\n\nLanguage rule: Reply in English only. Do not mix Chinese and English. "
@@ -61,6 +61,12 @@ def _language_instruction(text: str | None) -> str:
         "把回复统一整理为自然、适合语音播报的简体中文。"
         "除必要的专有名词外，不要输出英文句子。"
     )
+
+
+def _needs_chinese_retry(text: str) -> bool:
+    chinese_count = sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
+    ascii_alpha_count = sum(1 for ch in text if ch.isascii() and ch.isalpha())
+    return chinese_count == 0 or ascii_alpha_count > max(chinese_count * 2, 40)
 
 
 class TutorService:
@@ -203,6 +209,7 @@ class TutorService:
         conversation_id: str,
         content: str,
         user_metadata: dict | None = None,
+        response_language: str | None = None,
     ) -> tuple[Message, Message]:
         """
         发送用户消息 → 调用 LLM → 返回 (user_msg, assistant_msg)
@@ -225,7 +232,7 @@ class TutorService:
         self.db.add(user_msg)
 
         # 2. 调用 LLM 获取回复
-        ai_reply = await self._call_llm(conv, content)
+        ai_reply = await self._call_llm(conv, content, response_language=response_language)
 
         # 3. 保存 AI 回复
         assistant_msg = Message(
@@ -258,7 +265,12 @@ class TutorService:
         )
         return user_msg, assistant_msg
 
-    async def _call_llm(self, conv: Conversation, user_content: str) -> dict:
+    async def _call_llm(
+        self,
+        conv: Conversation,
+        user_content: str,
+        response_language: str | None = None,
+    ) -> dict:
         """
         调用 LLM：构建 system prompt → 加载历史消息 → 调用 LLMClient
 
@@ -300,7 +312,11 @@ class TutorService:
             raise
 
         # 2. 构建 system prompt
-        system_prompt = self._build_system_prompt(conv, user_content)
+        system_prompt = self._build_system_prompt(
+            conv,
+            user_content,
+            response_language=response_language,
+        )
 
         # 3. 加载历史消息（最近 20 条，避免超 token 限制）
         history = await self._load_history(conv.id, limit=20)
@@ -314,6 +330,27 @@ class TutorService:
                 temperature=resolved.temperature,
                 max_tokens=resolved.max_tokens or 2048,
             )
+            if response_language == "zh-CN" and _needs_chinese_retry(result.content):
+                logger.warning(
+                    "llm_response_language_retry",
+                    conversation_id=str(conv.id),
+                    requested_language=response_language,
+                    first_model=result.model_name,
+                    first_content_preview=result.content[:120],
+                )
+                retry_prompt = (
+                    f"{system_prompt}\n\n"
+                    "强制要求：上一轮回答没有满足中文输出要求。"
+                    "现在请重新回答学生刚才的问题，只能使用简体中文，不要输出英文句子，"
+                    "不要解释规则，不要提到语音识别错误。"
+                )
+                result = await llm.chat(
+                    user_content=user_content,
+                    system_prompt=retry_prompt,
+                    history=history,
+                    temperature=0.2,
+                    max_tokens=resolved.max_tokens or 2048,
+                )
 
             logger.info(
                 "llm_call_completed",
@@ -343,7 +380,12 @@ class TutorService:
                 "model_name": "error_fallback",
             }
 
-    def _build_system_prompt(self, conv: Conversation, user_content: str | None = None) -> str:
+    def _build_system_prompt(
+        self,
+        conv: Conversation,
+        user_content: str | None = None,
+        response_language: str | None = None,
+    ) -> str:
         """根据会话场景构建 system prompt"""
         # 基础人设
         base = (
@@ -397,12 +439,18 @@ class TutorService:
                 ctx_parts.append(f"难度偏好：{conv.context['difficulty']}/5")
             if conv.context.get("system_prompt_override"):
                 # 允许任务指定自定义 prompt 覆盖
-                return f"{conv.context['system_prompt_override']}{_language_instruction(user_content)}"
+                return (
+                    f"{conv.context['system_prompt_override']}"
+                    f"{_language_instruction(user_content, response_language)}"
+                )
 
         ctx_str = "；".join(ctx_parts)
         context_line = f"\n学生信息：{ctx_str}" if ctx_str else ""
 
-        return f"{base}\n{scene_instruction}{context_line}{_language_instruction(user_content)}"
+        return (
+            f"{base}\n{scene_instruction}{context_line}"
+            f"{_language_instruction(user_content, response_language)}"
+        )
 
     async def _load_history(
         self, conversation_id: str, limit: int = 20
@@ -443,9 +491,15 @@ class TutorService:
         content: str,
         role: str = "user",
         user_metadata: dict | None = None,
+        response_language: str | None = None,
     ) -> tuple[Message, Message]:
         """send_message 的路由适配别名"""
-        return await self.send_message(conversation_id, content, user_metadata=user_metadata)
+        return await self.send_message(
+            conversation_id,
+            content,
+            user_metadata=user_metadata,
+            response_language=response_language,
+        )
 
     async def send_and_reply_stream(
         self,

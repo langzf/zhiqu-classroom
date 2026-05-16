@@ -105,6 +105,16 @@ async def _cache_assistant_tts(message: Message, user_id: str, voice_svc: VoiceS
         )
 
 
+async def _ensure_message_audio(message: Message, user_id: str, voice_svc: VoiceSvc) -> None:
+    metadata = message.metadata_ or {}
+    audio_meta = metadata.get("audio") if isinstance(metadata, dict) else None
+    if isinstance(audio_meta, dict) and audio_meta.get("object_name"):
+        return
+    if message.role != "assistant" or not message.content:
+        return
+    await _cache_assistant_tts(message, user_id, voice_svc)
+
+
 # ── 会话 CRUD ─────────────────────────────────────────
 
 @router.post("/conversations", summary="创建会话")
@@ -180,6 +190,7 @@ async def send_message_sync(
         content=body.content,
         role="student",
         user_metadata={"message_type": "text"},
+        response_language=None,
     )
     await _cache_assistant_tts(assistant_msg, user.sub, voice_svc)
     return ok({
@@ -274,6 +285,7 @@ async def send_voice_message(
     user_metadata = {
         "message_type": "voice",
         "transcript": transcript,
+        "response_language": "zh-CN",
         "audio": {
             "source": "user_upload",
             "object_name": object_name,
@@ -298,6 +310,7 @@ async def send_voice_message(
         content=transcript,
         role="student",
         user_metadata=user_metadata,
+        response_language="zh-CN",
     )
     user_metadata["audio"]["url"] = _audio_url(str(user_msg.id))
     user_msg.metadata_ = user_metadata
@@ -310,12 +323,13 @@ async def send_voice_message(
 
 
 @router.get("/messages/{message_id}/audio", summary="下载消息音频")
-async def get_message_audio(message_id: UUID, user: CurrentUser, svc: TutorSvc):
+async def get_message_audio(message_id: UUID, user: CurrentUser, svc: TutorSvc, voice_svc: VoiceSvc):
     msg = await svc.get_message(str(message_id))
     conv = await svc.get_conversation(str(msg.conversation_id))
     if str(conv.student_id) != user.sub:
         raise ForbiddenError("message audio is not accessible")
 
+    await _ensure_message_audio(msg, user.sub, voice_svc)
     metadata = msg.metadata_ or {}
     audio_meta = metadata.get("audio") if isinstance(metadata, dict) else None
     if not isinstance(audio_meta, dict) or not audio_meta.get("object_name"):
@@ -324,6 +338,26 @@ async def get_message_audio(message_id: UUID, user: CurrentUser, svc: TutorSvc):
     try:
         audio = await download_file(audio_meta["object_name"])
     except Exception as exc:
+        if msg.role == "assistant" and msg.content:
+            report_trace_event(
+                level="warn",
+                message="message_audio_download_retry_synthesize",
+                path=f"/api/v1/app/tutor/messages/{message_id}/audio",
+                method="GET",
+                error=exc,
+                meta={
+                    "messageId": str(message_id),
+                    "userId": user.sub,
+                    "objectName": audio_meta.get("object_name"),
+                    "audioSource": audio_meta.get("source"),
+                },
+            )
+            await _cache_assistant_tts(msg, user.sub, voice_svc)
+            metadata = msg.metadata_ or {}
+            audio_meta = metadata.get("audio") if isinstance(metadata, dict) else None
+            if isinstance(audio_meta, dict) and audio_meta.get("object_name"):
+                audio = await download_file(audio_meta["object_name"])
+                return Response(content=audio, media_type=audio_meta.get("content_type") or "audio/mpeg")
         log.error(
             "message_audio_download_failed",
             message_id=str(message_id),
