@@ -55,6 +55,17 @@ def _prepare_speech_text(text: str) -> str:
     return value[:1800] or text
 
 
+def _has_chinese(text: str) -> bool:
+    return any("\u4e00" <= ch <= "\u9fff" for ch in text or "")
+
+
+def _voice_lang_code(voice: str | None) -> str | None:
+    if not voice:
+        return None
+    prefix = voice.strip()[:1].lower()
+    return prefix or None
+
+
 class VoiceService:
     def __init__(self, db: AsyncSession, settings) -> None:
         self.db = db
@@ -289,10 +300,19 @@ class VoiceService:
         return row
 
     async def _tts(self, text: str, profile: VoiceProfile) -> tuple[bytes, str]:
+        is_chinese = _has_chinese(text)
+        requested_voice = profile.voice_key or self.settings.default_tts_voice
+        voice = requested_voice
+        lang_code = _voice_lang_code(voice)
+        if is_chinese and lang_code != "z":
+            voice = self.settings.default_tts_chinese_voice
+            lang_code = "z"
         payload = {
             "model": self.settings.default_tts_model,
             "input": text,
-            "voice": profile.voice_key or self.settings.default_tts_voice,
+            "voice": voice,
+            "lang_code": lang_code,
+            "response_format": "mp3",
         }
         url = _with_default_path(self.settings.tts_service_url, "/v1/audio/speech")
         report_trace_event(
@@ -304,7 +324,10 @@ class VoiceService:
                 "voiceService": "tts",
                 "provider": profile.provider,
                 "voiceProfileId": str(profile.id),
-                "voiceKey": profile.voice_key,
+                "voiceKey": requested_voice,
+                "resolvedVoice": voice,
+                "langCode": lang_code,
+                "textLanguage": "zh-CN" if is_chinese else "auto",
                 "textLength": len(text),
                 "targetHost": urlparse(url).netloc,
             },
@@ -320,6 +343,9 @@ class VoiceService:
                     status_code=exc.response.status_code,
                     response_body=_response_snippet(exc.response),
                     profile_id=str(profile.id),
+                    requested_voice=requested_voice,
+                    resolved_voice=voice,
+                    lang_code=lang_code,
                     exc_info=True,
                 )
                 report_trace_event(
@@ -333,6 +359,10 @@ class VoiceService:
                         "voiceService": "tts",
                         "targetHost": urlparse(url).netloc,
                         "voiceProfileId": str(profile.id),
+                        "voiceKey": requested_voice,
+                        "resolvedVoice": voice,
+                        "langCode": lang_code,
+                        "textLanguage": "zh-CN" if is_chinese else "auto",
                         "responseBody": _response_snippet(exc.response),
                     },
                 )
@@ -342,6 +372,9 @@ class VoiceService:
                     "voice_tts_request_failed",
                     url=url,
                     profile_id=str(profile.id),
+                    requested_voice=requested_voice,
+                    resolved_voice=voice,
+                    lang_code=lang_code,
                     error=str(exc),
                     exc_info=True,
                 )
@@ -355,6 +388,10 @@ class VoiceService:
                         "voiceService": "tts",
                         "targetHost": urlparse(url).netloc,
                         "voiceProfileId": str(profile.id),
+                        "voiceKey": requested_voice,
+                        "resolvedVoice": voice,
+                        "langCode": lang_code,
+                        "textLanguage": "zh-CN" if is_chinese else "auto",
                     },
                 )
                 raise BusinessError("speech synthesis service unavailable", status_code=502) from exc
@@ -368,6 +405,10 @@ class VoiceService:
                 "voiceService": "tts",
                 "targetHost": urlparse(url).netloc,
                 "voiceProfileId": str(profile.id),
+                "voiceKey": requested_voice,
+                "resolvedVoice": voice,
+                "langCode": lang_code,
+                "textLanguage": "zh-CN" if is_chinese else "auto",
                 "contentType": resp.headers.get("content-type", ""),
                 "audioBytes": len(resp.content),
             },

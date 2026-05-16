@@ -55,8 +55,8 @@ def upgrade() -> None:
         """
         INSERT INTO voice_profiles (id, name, description, provider, voice_key, is_active, sort_order)
         VALUES
-          ('019e2f00-1111-7111-8111-111111111111', '默认女声', 'Kokoro 默认播报音色', 'tts', 'af_heart', true, 0),
-          ('019e2f00-2222-7222-8222-222222222222', '默认男声', 'Kokoro 备用播报音色', 'tts', 'am_adam', true, 10)
+          ('019e2f00-1111-7111-8111-111111111111', '默认女声', 'Kokoro 中文默认播报音色', 'tts', 'zf_xiaoxiao', true, 0),
+          ('019e2f00-2222-7222-8222-222222222222', '默认男声', 'Kokoro 中文备用播报音色', 'tts', 'zm_yunxi', true, 10)
         """
     )
 

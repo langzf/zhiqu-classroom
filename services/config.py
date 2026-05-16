@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     openvoice_service_url: str = "https://openvoice.yueying.cloud"
     default_tts_model: str = "kokoro"
     default_tts_voice: str = "af_heart"
+    default_tts_chinese_voice: str = "zf_xiaoxiao"
 
     # WeChat Mini Program
     wechat_miniapp_appid: str = ""
