@@ -335,11 +335,14 @@
 
 .input-bar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 12rpx;
 }
 
 .record-btn {
+  width: 76rpx;
+  height: 76rpx;
+  min-width: 76rpx;
   background: #f1f5f9;
   color: #0f172a;
 }
@@ -419,11 +422,11 @@
 
 .text-input {
   flex: 1;
-  min-height: 72rpx;
+  min-height: 76rpx;
   max-height: 176rpx;
-  padding: 18rpx 24rpx;
+  padding: 18rpx 24rpx 16rpx;
   box-sizing: border-box;
-  border-radius: 28rpx;
+  border-radius: 26rpx;
   background: #f1f5f9;
   color: #0f172a;
   font-size: 29rpx;
@@ -431,14 +434,16 @@
 }
 
 .composer-actions {
-  width: 72rpx;
-  min-width: 72rpx;
+  width: 76rpx;
+  min-width: 76rpx;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
 }
 
 .send-btn {
+  width: 76rpx;
+  height: 76rpx;
   background: #e5e7eb;
   color: #9ca3af;
 }
@@ -458,7 +463,7 @@
   font-size: 40rpx;
   line-height: 1;
   font-weight: 800;
-  transform: translateY(-2rpx);
+  transform: translateY(-3rpx);
 }
 
 .send-spinner,

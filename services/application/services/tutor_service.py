@@ -36,6 +36,33 @@ def _normalize_scene(scene: str | None) -> str:
     return normalized
 
 
+def _detect_response_language(text: str | None) -> str:
+    """Pick one response language so downstream TTS receives a single-language text."""
+    value = text or ""
+    chinese_count = sum(1 for ch in value if "\u4e00" <= ch <= "\u9fff")
+    ascii_alpha_count = sum(1 for ch in value if ch.isascii() and ch.isalpha())
+    if chinese_count > 0:
+        return "zh-CN"
+    if ascii_alpha_count > 0:
+        return "en-US"
+    return "zh-CN"
+
+
+def _language_instruction(text: str | None) -> str:
+    language = _detect_response_language(text)
+    if language == "en-US":
+        return (
+            "\n\nLanguage rule: Reply in English only. Do not mix Chinese and English. "
+            "Only keep non-English proper nouns when they are unavoidable."
+        )
+    return (
+        "\n\n语种规则：请只使用简体中文回复，不要中英文混杂。"
+        "如果语音转文本结果里夹杂英文识别标记、英文占位符或无意义片段，请忽略这些噪声，"
+        "把回复统一整理为自然、适合语音播报的简体中文。"
+        "除必要的专有名词外，不要输出英文句子。"
+    )
+
+
 class TutorService:
     """AI Tutor 核心服务"""
 
@@ -273,7 +300,7 @@ class TutorService:
             raise
 
         # 2. 构建 system prompt
-        system_prompt = self._build_system_prompt(conv)
+        system_prompt = self._build_system_prompt(conv, user_content)
 
         # 3. 加载历史消息（最近 20 条，避免超 token 限制）
         history = await self._load_history(conv.id, limit=20)
@@ -316,7 +343,7 @@ class TutorService:
                 "model_name": "error_fallback",
             }
 
-    def _build_system_prompt(self, conv: Conversation) -> str:
+    def _build_system_prompt(self, conv: Conversation, user_content: str | None = None) -> str:
         """根据会话场景构建 system prompt"""
         # 基础人设
         base = (
@@ -370,12 +397,12 @@ class TutorService:
                 ctx_parts.append(f"难度偏好：{conv.context['difficulty']}/5")
             if conv.context.get("system_prompt_override"):
                 # 允许任务指定自定义 prompt 覆盖
-                return conv.context["system_prompt_override"]
+                return f"{conv.context['system_prompt_override']}{_language_instruction(user_content)}"
 
         ctx_str = "；".join(ctx_parts)
         context_line = f"\n学生信息：{ctx_str}" if ctx_str else ""
 
-        return f"{base}\n{scene_instruction}{context_line}"
+        return f"{base}\n{scene_instruction}{context_line}{_language_instruction(user_content)}"
 
     async def _load_history(
         self, conversation_id: str, limit: int = 20
@@ -476,7 +503,7 @@ class TutorService:
             yield "data: [DONE]\n\n"
             return
 
-        system_prompt = self._build_system_prompt(conv)
+        system_prompt = self._build_system_prompt(conv, content)
         history = await self._load_history(conv.id, limit=20)
 
         # ── 3. 流式调用 LLM & 逐 chunk 输出 ──────

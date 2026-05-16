@@ -50,10 +50,7 @@ def _audio_extension(filename: str | None, content_type: str | None) -> str:
 
 async def _cache_assistant_tts(message: Message, user_id: str, voice_svc: VoiceSvc) -> None:
     setting, _profile = await voice_svc.get_user_setting(user_id)
-    if not setting.auto_play:
-        message.metadata_ = {**(message.metadata_ or {}), "tts_status": "skipped"}
-        return
-
+    message.metadata_ = {**(message.metadata_ or {}), "message_type": "text", "tts_status": "generating"}
     try:
         audio, content_type = await voice_svc.synthesize(
             text=message.content,
@@ -72,6 +69,19 @@ async def _cache_assistant_tts(message: Message, user_id: str, voice_svc: VoiceS
                 "url": _audio_url(str(message.id)),
             },
         }
+        report_trace_event(
+            level="info",
+            message="assistant_tts_cache_ready",
+            path="/api/v1/app/tutor/conversations/{conv_id}/messages/sync",
+            method="POST",
+            meta={
+                "messageId": str(message.id),
+                "userId": user_id,
+                "autoPlay": setting.auto_play,
+                "audioBytes": len(audio),
+                "contentType": content_type,
+            },
+        )
     except Exception as exc:
         message.metadata_ = {**(message.metadata_ or {}), "tts_status": "failed"}
         log.error(
